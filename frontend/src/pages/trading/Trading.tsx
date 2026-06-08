@@ -22,6 +22,7 @@ import {
   Activity,
   Shield
 } from 'lucide-react';
+import { SYMBOL_CONTRACT_OPTIONS } from '@/constants/symbols';
 
 interface TradingStatus {
   running: boolean;
@@ -71,13 +72,7 @@ interface Order {
   created_at: string;
 }
 
-const SYMBOLS = [
-  { value: 'KQ.m@SHFE.rb', label: '螺纹钢 (RB)' },
-  { value: 'KQ.m@SHFE.hc', label: '热卷 (HC)' },
-  { value: 'KQ.m@DCE.i', label: '铁矿石 (I)' },
-  { value: 'KQ.m@DCE.j', label: '焦炭 (J)' },
-  { value: 'KQ.m@CZCE.TA', label: 'PTA (TA)' },
-];
+const SYMBOLS = SYMBOL_CONTRACT_OPTIONS;
 
 export default function Trading() {
   const [status, setStatus] = useState<TradingStatus | null>(null);

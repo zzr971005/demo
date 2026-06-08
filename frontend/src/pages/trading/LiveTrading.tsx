@@ -26,14 +26,9 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FactorDetailDialog } from '@/components/FactorDetailDialog'
+import { SYMBOLS } from '@/constants/symbols'
 
-const symbols = [
-  { value: 'RB', label: '螺纹钢 (RB)' },
-  { value: 'HC', label: '热卷 (HC)' },
-  { value: 'I', label: '铁矿石 (I)' },
-  { value: 'J', label: '焦炭 (J)' },
-  { value: 'JM', label: '焦煤 (JM)' },
-]
+const symbols = SYMBOLS
 
 // 性能衰减指示器
 function DecayIndicator({ decay }: { decay: number }) {

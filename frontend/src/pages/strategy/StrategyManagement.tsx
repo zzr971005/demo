@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { SYMBOL_CODES } from '@/constants/symbols'
 
 interface FactorInfo {
   id: string;
@@ -54,7 +55,7 @@ const StrategyManagement: React.FC = () => {
   const [decayHistory, setDecayHistory] = useState<DecayHistoryItem[]>([]);
   const [selectedFactorId, setSelectedFactorId] = useState<string | null>(null);
 
-  const symbols = ['RB', 'HC', 'I', 'J', 'JM', 'CU', 'AL', 'ZN', 'NI', 'SN'];
+  const symbols = SYMBOL_CODES;
 
   useEffect(() => {
     loadData();

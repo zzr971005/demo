@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useAppStore } from '@/store'
 import api from '@/lib/api'
 
@@ -31,20 +31,6 @@ export interface LiveConfirmData {
   selfChecks: SelfCheckResult[]
 }
 
-const DEFAULT_SYMBOLS: SymbolSwitchItem[] = [
-  { symbol: 'RB', name: '螺纹钢', mode: 'OFF', marginUsed: 0, marginTotal: 100000, sharpe20d: 1.85, maxDrawdown20d: -0.05, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'HC', name: '热卷', mode: 'PAPER', marginUsed: 45000, marginTotal: 100000, sharpe20d: 1.62, maxDrawdown20d: -0.08, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'I', name: '铁矿石', mode: 'LIVE', marginUsed: 78000, marginTotal: 100000, sharpe20d: 2.15, maxDrawdown20d: -0.03, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'J', name: '焦炭', mode: 'PAPER', marginUsed: 92000, marginTotal: 100000, sharpe20d: 0.95, maxDrawdown20d: -0.12, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'JM', name: '焦煤', mode: 'OFF', marginUsed: 0, marginTotal: 100000, sharpe20d: 0.72, maxDrawdown20d: -0.15, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'CU', name: '沪铜', mode: 'LIVE', marginUsed: 65000, marginTotal: 100000, sharpe20d: 1.98, maxDrawdown20d: -0.04, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'AL', name: '沪铝', mode: 'PAPER', marginUsed: 35000, marginTotal: 100000, sharpe20d: 1.45, maxDrawdown20d: -0.07, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'ZN', name: '沪锌', mode: 'OFF', marginUsed: 0, marginTotal: 100000, sharpe20d: 1.12, maxDrawdown20d: -0.09, isMarginInsufficient: true, isDeliveryMonth: false },
-  { symbol: 'NI', name: '沪镍', mode: 'OFF', marginUsed: 0, marginTotal: 100000, sharpe20d: 0.88, maxDrawdown20d: -0.18, isMarginInsufficient: true, isDeliveryMonth: true },
-  { symbol: 'TA', name: 'PTA', mode: 'PAPER', marginUsed: 42000, marginTotal: 100000, sharpe20d: 1.55, maxDrawdown20d: -0.06, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'MA', name: '甲醇', mode: 'LIVE', marginUsed: 58000, marginTotal: 100000, sharpe20d: 1.72, maxDrawdown20d: -0.05, isMarginInsufficient: false, isDeliveryMonth: false },
-  { symbol: 'PP', name: '聚丙烯', mode: 'PAPER', marginUsed: 38000, marginTotal: 100000, sharpe20d: 1.38, maxDrawdown20d: -0.08, isMarginInsufficient: false, isDeliveryMonth: false },
-]
 
 function generateSelfChecks(item: SymbolSwitchItem): SelfCheckResult[] {
   return [
@@ -88,10 +74,40 @@ function generateSelfChecks(item: SymbolSwitchItem): SelfCheckResult[] {
 }
 
 export function useManualSwitch() {
-  const [symbols, setSymbols] = useState<SymbolSwitchItem[]>(DEFAULT_SYMBOLS)
+  const [symbols, setSymbols] = useState<SymbolSwitchItem[]>([])
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [emergencyLoading, setEmergencyLoading] = useState(false)
   const setSystemStatus = useAppStore((s) => s.setSystemStatus)
+
+  // 从后端真实加载 12 个品种状态（不再使用 mock 数据）
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const { data } = await api.get('/symbols')
+        if (cancelled || !Array.isArray(data)) return
+        setSymbols(
+          data.map((d: any): SymbolSwitchItem => ({
+            symbol: d.symbol,
+            name: d.name ?? d.symbol,
+            mode: (d.status ?? 'OFF') as SymbolMode,
+            marginUsed: d.margin_used ?? 0,
+            marginTotal: d.max_margin ?? 0,
+            sharpe20d: d.sharpe_ratio ?? 0,
+            maxDrawdown20d: d.max_drawdown_20d ?? 0,
+            isMarginInsufficient: d.is_margin_insufficient ?? false,
+            isDeliveryMonth: d.is_delivery_month ?? false,
+          })),
+        )
+      } catch (err) {
+        console.error('Failed to load symbols:', err)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const updateSymbolMode = useCallback(async (symbol: string, mode: SymbolMode) => {
     setLoading((prev) => ({ ...prev, [symbol]: true }))

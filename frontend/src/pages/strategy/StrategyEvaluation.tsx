@@ -28,6 +28,7 @@ import {
   Calculator,
 } from 'lucide-react'
 import api from '@/lib/api'
+import { SYMBOL_CODES } from '@/constants/symbols'
 
 interface StrategyScoreDetail {
   id: string
@@ -94,11 +95,7 @@ const SCORING_RULES: ScoringRule[] = [
   },
 ]
 
-const ALL_SYMBOLS = [
-  'RB', 'I', 'J', 'JM',
-  'MA', 'TA', 'FG', 'SR', 'PP', 'L',
-  'IF', 'IC', 'IH', 'IM'
-]
+const ALL_SYMBOLS = SYMBOL_CODES
 
 function ScoreBar({ value, maxValue, color, label }: { value: number; maxValue: number; color: string; label: string }) {
   const percentage = (value / maxValue) * 100

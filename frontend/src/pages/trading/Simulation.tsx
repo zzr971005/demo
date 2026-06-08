@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../../components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { API_BASE_URL } from '../../config'
+import { SYMBOLS } from '@/constants/symbols'
 
 interface SimulationStatus {
   is_running: boolean
@@ -231,10 +232,9 @@ export default function Simulation() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="RB">RB (螺纹钢</SelectItem>
-                  <SelectItem value="MA">MA (甲醇)</SelectItem>
-                  <SelectItem value="CU">CU (铜)</SelectItem>
-                  <SelectItem value="AL">AL (铝)</SelectItem>
+                  {SYMBOLS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

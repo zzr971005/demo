@@ -5,8 +5,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { SYMBOL_CODES } from '@/constants/symbols'
 
-const AVAILABLE_SYMBOLS = ['RB', 'MA', 'CU', 'AL', 'ZN', 'NI', 'HC', 'JM', 'SF', 'SM']
+const AVAILABLE_SYMBOLS = SYMBOL_CODES
 
 export default function EvolutionModeSelector() {
   const [mode, setMode] = useState<'single' | 'joint' | 'hybrid'>('single')

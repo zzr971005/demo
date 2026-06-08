@@ -44,6 +44,7 @@ import {
   LayoutGrid,
 } from 'lucide-react'
 import api, { baselineApi } from '@/lib/api'
+import { SYMBOL_CODES } from '@/constants/symbols'
 
 interface MetricData {
   name: string
@@ -115,11 +116,7 @@ interface BaselineStrategy {
   name: string
 }
 
-const ALL_SYMBOLS = [
-  'RB', 'I', 'J', 'JM',
-  'MA', 'TA', 'FG', 'SR', 'PP', 'L',
-  'IF', 'IC', 'IH', 'IM'
-]
+const ALL_SYMBOLS = SYMBOL_CODES
 
 const BASELINE_STRATEGIES_INFO: Record<string, BaselineStrategyInfo> = {
   buy_and_hold: {

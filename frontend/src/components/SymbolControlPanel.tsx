@@ -20,6 +20,7 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { useSymbols } from '@/hooks/useSymbols'
 import { evolutionApi } from '@/lib/api'
+import { SYMBOLS } from '@/constants/symbols'
 
 // 品种分组配置
 const SYMBOL_GROUPS = {
@@ -82,20 +83,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; textColor: s
 }
 
 // 品种中文名映射
-const SYMBOL_NAMES: Record<string, string> = {
-  RB: '螺纹钢',
-  MA: '甲醇',
-  M: '豆粕',
-  TA: 'PTA',
-  FG: '玻璃',
-  SR: '白糖',
-  SA: '纯碱',
-  PP: '聚丙烯',
-  AU: '黄金',
-  CU: '铜',
-  SC: '原油',
-  IF: '股指',
-}
+const SYMBOL_NAMES: Record<string, string> = Object.fromEntries(SYMBOLS.map((s) => [s.value, s.name]))
 
 interface SymbolCardProps {
   symbol: string

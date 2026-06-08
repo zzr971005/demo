@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import SymbolControlPanel from '@/components/SymbolControlPanel'
+import { SYMBOLS } from '@/constants/symbols'
 
 function StatusBadge({ status }: { status: string }) {
   const config = {
@@ -661,22 +662,7 @@ export default function EvolutionCenter() {
   }, [selectedSymbol])
 
   // 品种列表（与后端 system.yaml 配置一致）
-  const symbols = [
-    // 低保证金品种（8个）
-    { symbol: 'RB', name: '螺纹钢' },
-    { symbol: 'MA', name: '甲醇' },
-    { symbol: 'M', name: '豆粕' },
-    { symbol: 'TA', name: 'PTA' },
-    { symbol: 'FG', name: '玻璃' },
-    { symbol: 'SR', name: '白糖' },
-    { symbol: 'SA', name: '纯碱' },
-    { symbol: 'PP', name: '聚丙烯' },
-    // 高保证金品种（4个）
-    { symbol: 'AU', name: '黄金' },
-    { symbol: 'CU', name: '铜' },
-    { symbol: 'SC', name: '原油' },
-    { symbol: 'IF', name: '股指' },
-  ]
+  const symbols = SYMBOLS.map((s) => ({ symbol: s.value, name: s.name }))
 
   return (
     <div className="flex gap-6">

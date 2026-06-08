@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SYMBOL_CODES } from '@/constants/symbols'
 
-const AVAILABLE_SYMBOLS = ['RB', 'MA', 'CU', 'AL', 'ZN', 'NI', 'HC', 'JM', 'SF', 'SM']
+const AVAILABLE_SYMBOLS = SYMBOL_CODES
 
 export default function GeneralizationTest() {
   const [factorId, setFactorId] = useState('')

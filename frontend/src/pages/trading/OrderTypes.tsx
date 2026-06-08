@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../../components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { API_BASE_URL } from '../../config'
+import { SYMBOLS } from '@/constants/symbols'
 
 interface OrderType {
   type_id: string
@@ -178,9 +179,9 @@ export default function OrderTypes() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="RB">RB (螺纹钢</SelectItem>
-                  <SelectItem value="MA">MA (甲醇)</SelectItem>
-                  <SelectItem value="CU">CU (铜)</SelectItem>
+                  {SYMBOLS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
