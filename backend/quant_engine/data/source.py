@@ -17,6 +17,12 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+
+try:
+    from zoneinfo import ZoneInfo
+    _BEIJING_TZ = ZoneInfo("Asia/Shanghai")
+except Exception:  # pragma: no cover - 极端环境缺少 tzdata 时回退
+    _BEIJING_TZ = None
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -32,7 +38,16 @@ def _is_market_open(now: Optional[datetime] = None) -> bool:
     日盘：09:00-10:15, 10:30-11:30, 13:30-15:00
     夜盘：21:00-23:00（部分品种更长，但用23:00作为保守判断）
     """
-    now = now or datetime.now()
+    # 中国期货交易时段以北京时间（UTC+8）为准。务必把时间换算到北京时区，
+    # 否则在 UTC 等非北京时区的服务器（如云端）上判断会整体错位，
+    # 导致真实开盘时段被误判为休市、静默跳过真实合约下载并回退到退化数据。
+    if now is None:
+        if _BEIJING_TZ is not None:
+            now = datetime.now(_BEIJING_TZ)
+        else:
+            now = datetime.now()
+    elif now.tzinfo is not None and _BEIJING_TZ is not None:
+        now = now.astimezone(_BEIJING_TZ)
     if now.weekday() >= 5:
         return False
     hour = now.hour
