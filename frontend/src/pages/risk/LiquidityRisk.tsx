@@ -7,11 +7,23 @@ import { API_BASE_URL } from '../../config'
 
 interface LiquidityAnalysis {
   symbol: string
-  liquidity_score: number
-  market_depth: number
-  price_impact: number
-  volume_profile: number
-  risk_level: 'low' | 'medium' | 'high'
+  liquidity_ratio?: number
+  amihud_illiquidity?: number
+  risk_score?: number
+  // check-order 响应字段
+  passes?: boolean
+  message?: string
+  volume_ratio?: number
+}
+
+const fmt = (v: number | null | undefined, digits: number): string =>
+  typeof v === 'number' && isFinite(v) ? v.toFixed(digits) : '—'
+
+const riskLevelFromScore = (score: number | undefined): 'low' | 'medium' | 'high' => {
+  const s = score ?? 0
+  if (s > 0.7) return 'high'
+  if (s > 0.4) return 'medium'
+  return 'low'
 }
 
 export default function LiquidityRisk() {
@@ -113,37 +125,40 @@ export default function LiquidityRisk() {
 
       {analysis && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {analysis.message && (
+            <Card>
+              <CardContent className="py-4">
+                <Badge variant={analysis.passes ? 'default' : 'destructive'}>
+                  {analysis.passes ? '通过' : '未通过'}
+                </Badge>
+                <span className="ml-3 text-sm">{analysis.message}</span>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">流动性评分</CardTitle>
+                <CardTitle className="text-sm font-medium">流动性比率</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analysis.liquidity_score.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{fmt(analysis.liquidity_ratio, 2)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">市场深度</CardTitle>
+                <CardTitle className="text-sm font-medium">Amihud 非流动性</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analysis.market_depth.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{fmt(analysis.amihud_illiquidity, 4)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">价格冲击</CardTitle>
+                <CardTitle className="text-sm font-medium">风险评分</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{(analysis.price_impact * 100).toFixed(2)}%</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">成交量分析</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analysis.volume_profile.toFixed(2)}</div>
+                <div className="text-2xl font-bold text-red-600">{fmt(analysis.risk_score, 2)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -151,7 +166,7 @@ export default function LiquidityRisk() {
                 <CardTitle className="text-sm font-medium">风险等级</CardTitle>
               </CardHeader>
               <CardContent>
-                {getRiskBadge(analysis.risk_level)}
+                {getRiskBadge(riskLevelFromScore(analysis.risk_score))}
               </CardContent>
             </Card>
           </div>
@@ -164,25 +179,13 @@ export default function LiquidityRisk() {
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-sm">流动性评分</span>
-                    <span className="text-sm font-medium">{analysis.liquidity_score.toFixed(2)}/100</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${analysis.liquidity_score}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm">价格冲击</span>
-                    <span className="text-sm font-medium">{(analysis.price_impact * 100).toFixed(2)}%</span>
+                    <span className="text-sm">风险评分</span>
+                    <span className="text-sm font-medium">{fmt(analysis.risk_score, 2)}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-red-600 h-2 rounded-full"
-                      style={{ width: `${Math.min(analysis.price_impact * 1000, 100)}%` }}
+                      style={{ width: `${Math.min((analysis.risk_score ?? 0) * 100, 100)}%` }}
                     />
                   </div>
                 </div>

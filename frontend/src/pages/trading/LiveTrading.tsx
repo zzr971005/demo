@@ -316,6 +316,10 @@ function PerformanceSummary({
     )
   }
 
+  const avgSharpe = summary.avg_live_sharpe ?? 0
+  const avgReturn = summary.avg_live_return ?? 0
+  const positiveSharpeRatio = summary.positive_sharpe_ratio ?? 0
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       <Card>
@@ -335,10 +339,10 @@ function PerformanceSummary({
           <CardDescription>平均实盘夏普</CardDescription>
           <CardTitle className={cn(
             "text-3xl",
-            summary.avg_live_sharpe >= 1 ? 'text-green-500' :
-            summary.avg_live_sharpe >= 0.5 ? 'text-yellow-500' : 'text-red-500'
+            avgSharpe >= 1 ? 'text-green-500' :
+            avgSharpe >= 0.5 ? 'text-yellow-500' : 'text-red-500'
           )}>
-            {summary.avg_live_sharpe.toFixed(2)}
+            {avgSharpe.toFixed(2)}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -353,9 +357,9 @@ function PerformanceSummary({
           <CardDescription>平均收益</CardDescription>
           <CardTitle className={cn(
             "text-3xl",
-            summary.avg_live_return >= 0 ? 'text-green-500' : 'text-red-500'
+            avgReturn >= 0 ? 'text-green-500' : 'text-red-500'
           )}>
-            {(summary.avg_live_return * 100).toFixed(1)}%
+            {(avgReturn * 100).toFixed(1)}%
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -369,7 +373,7 @@ function PerformanceSummary({
         <CardHeader className="pb-2">
           <CardDescription>正夏普比率</CardDescription>
           <CardTitle className="text-3xl">
-            {(summary.positive_sharpe_ratio * 100).toFixed(0)}%
+            {(positiveSharpeRatio * 100).toFixed(0)}%
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -384,7 +388,7 @@ function PerformanceSummary({
 
 // 主页面
 export default function LiveTrading() {
-  const [selectedSymbol, setSelectedSymbol] = useState<string>('')
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('all')
   const [activeTab, setActiveTab] = useState('live')
 
   const {
@@ -403,7 +407,7 @@ export default function LiveTrading() {
     removeFactor,
     deployingId,
     removingId,
-  } = useLiveTrading(selectedSymbol || undefined)
+  } = useLiveTrading(selectedSymbol === 'all' ? undefined : selectedSymbol)
 
   const handleRefresh = useCallback(() => {
     refreshLiveFactors()
@@ -444,7 +448,7 @@ export default function LiveTrading() {
               <SelectValue placeholder="所有品种" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">所有品种</SelectItem>
+              <SelectItem value="all">所有品种</SelectItem>
               {symbols.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
                   {s.label}

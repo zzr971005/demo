@@ -208,30 +208,26 @@ def run_baseline_backtest(
     if baseline_type == "buy_and_hold":
         positions = np.ones(n, dtype=np.int8)
         entry_price = close[0]
-        exit_price = close[-1]
-        
-        # 考虑杠杆的收益计算
-        price_return = (exit_price - entry_price) / entry_price
-        leveraged_return = price_return * leverage
-        
-        # 检查是否爆仓（价格下跌超过保证金比例）
-        min_price = np.min(close)
-        max_drawdown_price = (entry_price - min_price) / entry_price
-        is_liquidated = max_drawdown_price >= margin_ratio
-        
-        if is_liquidated:
-            # 爆仓，权益归零
-            liquidation_idx = np.argmax(close <= entry_price * (1 - margin_ratio))
-            equity = np.concatenate([
-                init_capital * (1 + price_return * leverage * np.linspace(0, 1, liquidation_idx)),
-                np.zeros(n - liquidation_idx)
-            ])
-            total_return = -1.0  # 爆仓，亏损100%
+
+        # 用真实收盘价路径计算权益曲线（含杠杆），而非线性插值。
+        # 旧实现用 np.linspace 把权益画成一条直线，导致逐根收益方差≈0、
+        # 夏普虚高(67)、最大回撤恒为0、胜率恒为100% —— 典型"指标好得不正常"静默错误。
+        path_return = (close - entry_price) / entry_price
+        equity = init_capital * (1.0 + leverage * path_return)
+
+        # 爆仓处理：权益触及0后归零并保持
+        liquidated = np.where(equity <= 0)[0]
+        if len(liquidated) > 0:
+            idx = int(liquidated[0])
+            equity[idx:] = 0.0
+
+        # 用逐根收益近似单笔买入持有的盈亏序列（供胜率/统计使用）
+        if n > 1:
+            prev = equity[:-1]
+            bar_returns = np.where(prev > 0, np.diff(equity) / prev, 0.0)
         else:
-            equity = init_capital * (1 + leveraged_return * np.linspace(0, 1, n))
-            total_return = leveraged_return
-        
-        trades_pnl = np.array([init_capital * leveraged_return])
+            bar_returns = np.array([0.0])
+        trades_pnl = bar_returns * init_capital
         trades_count = 1
 
     elif baseline_type == "sma_crossover":
@@ -344,7 +340,13 @@ def run_baseline_backtest(
     equity_curve = equity
     total_return = (equity[-1] - init_capital) / init_capital if n > 0 else 0
 
-    returns = np.diff(equity) / equity[:-1] if len(equity) > 1 else np.array([0])
+    if len(equity) > 1:
+        prev = equity[:-1]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            returns = np.where(prev > 0, np.diff(equity) / prev, 0.0)
+        returns = np.nan_to_num(returns, nan=0.0, posinf=0.0, neginf=0.0)
+    else:
+        returns = np.array([0.0])
     mean_ret = np.mean(returns) * 252
     std_ret = np.std(returns) * np.sqrt(252)
     sharpe = (mean_ret - 0.03) / (std_ret + 1e-12)

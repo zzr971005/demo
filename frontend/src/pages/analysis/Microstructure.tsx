@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { API_BASE_URL } from '../../config'
 
 interface MicrostructureData {
   symbol: string
-  bid_ask_spread: number
-  order_flow: number
-  liquidity_score: number
-  slippage: number
-  impact_cost: number
+  bid_ask_spread: number | null
+  order_flow: number | null
+  depth_imbalance: number | null
+  volume: number | null
+  vwap: number | null
+  has_data: boolean
 }
+
+const fmt = (v: number | null | undefined, digits: number): string =>
+  typeof v === 'number' && isFinite(v) ? v.toFixed(digits) : '—'
 
 export default function Microstructure() {
   const [data, setData] = useState<MicrostructureData | null>(null)
@@ -54,7 +58,15 @@ export default function Microstructure() {
         </div>
       </div>
 
-      {data && (
+      {data && data.has_data === false && (
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            暂无 {data.symbol} 的微观结构数据（需接入盘口/成交明细数据后生成）
+          </CardContent>
+        </Card>
+      )}
+
+      {data && data.has_data !== false && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Card>
@@ -62,77 +74,42 @@ export default function Microstructure() {
                 <CardTitle className="text-sm font-medium">买卖价差</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.bid_ask_spread.toFixed(4)}</div>
+                <div className="text-2xl font-bold">{fmt(data.bid_ask_spread, 4)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">订单簿</CardTitle>
+                <CardTitle className="text-sm font-medium">订单流</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.order_flow.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{fmt(data.order_flow, 2)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">流动性评分</CardTitle>
+                <CardTitle className="text-sm font-medium">深度失衡</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.liquidity_score.toFixed(2)}</div>
+                <div className="text-2xl font-bold">{fmt(data.depth_imbalance, 2)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">滑点</CardTitle>
+                <CardTitle className="text-sm font-medium">成交量</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{(data.slippage * 100).toFixed(2)}%</div>
+                <div className="text-2xl font-bold">{fmt(data.volume, 0)}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">冲击成本</CardTitle>
+                <CardTitle className="text-sm font-medium">VWAP</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{(data.impact_cost * 100).toFixed(2)}%</div>
+                <div className="text-2xl font-bold">{fmt(data.vwap, 2)}</div>
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>综合分析</CardTitle>
-              <CardDescription>市场微观结构综合指标</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm">流动性评分</span>
-                    <span className="text-sm font-medium">{data.liquidity_score.toFixed(2)}/100</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${data.liquidity_score}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm">滑点水平</span>
-                    <span className="text-sm font-medium">{(data.slippage * 100).toFixed(2)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-red-600 h-2 rounded-full"
-                      style={{ width: `${Math.min(data.slippage * 1000, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </>
       )}
     </div>

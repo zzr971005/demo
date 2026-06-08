@@ -69,7 +69,14 @@ export default function Simulation() {
       const res = await fetch(`${API_BASE_URL}/simulation/status`)
       if (res.ok) {
         const data = await res.json()
-        setStatus(data)
+        setStatus((prev) => ({
+          is_running: data.is_running ?? prev.is_running,
+          total_pnl: data.total_pnl ?? prev.total_pnl,
+          total_trades: data.total_trades ?? prev.total_trades,
+          win_rate: data.win_rate ?? prev.win_rate,
+          sharpe_ratio: data.sharpe_ratio ?? prev.sharpe_ratio,
+          max_drawdown: data.max_drawdown ?? prev.max_drawdown,
+        }))
       }
     } catch (error) {
       console.error('Failed to fetch simulation status:', error)

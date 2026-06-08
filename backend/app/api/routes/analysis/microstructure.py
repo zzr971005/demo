@@ -30,17 +30,24 @@ async def get_microstructure_analysis(symbol: str) -> Dict[str, Any]:
             return {
                 "symbol": symbol,
                 "bid_ask_spread": data.bid_ask_spread,
-                "order_flow": {"value": data.order_flow} if data.order_flow else {},
-                "liquidity_score": data.liquidity_score if data.liquidity_score else 0.0,
-                "depth": data.depth if data.depth else 0.0,
+                "order_flow": data.order_flow,
+                "depth_imbalance": data.depth_imbalance,
+                "volume": data.volume,
+                "vwap": data.vwap,
                 "timestamp": data.timestamp.isoformat(),
+                "has_data": True,
             }
         else:
+            # 无微观结构数据时返回 null（不伪造数值）
             return {
                 "symbol": symbol,
-                "bid_ask_spread": 0.0,
-                "order_flow": {},
-                "liquidity_score": 0.0
+                "bid_ask_spread": None,
+                "order_flow": None,
+                "depth_imbalance": None,
+                "volume": None,
+                "vwap": None,
+                "timestamp": None,
+                "has_data": False,
             }
 
 
@@ -80,8 +87,8 @@ async def get_liquidity_metrics(symbol: str) -> Dict[str, Any]:
                 "symbol": symbol,
                 "volume": volume,
                 "spread_ratio": spread_ratio,
-                "liquidity_score": data.liquidity_score if data.liquidity_score else 0.0,
-                "depth": data.depth if data.depth else 0.0,
+                "order_flow": data.order_flow,
+                "depth_imbalance": data.depth_imbalance,
             }
         else:
             return {
