@@ -39,7 +39,7 @@ class Candidate(Base):
         default=CandidateStatus.SEED,
         index=True,
     )
-    strategy_type: Mapped[str] = mapped_column(String(16), default="trend", server_default=text('trend'))
+    strategy_type: Mapped[str] = mapped_column(String(16), default="trend", server_default=text("'trend'"))
     formula: Mapped[str] = mapped_column(Text)
     params: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     parent_id: Mapped[Optional[str]] = mapped_column(
@@ -181,6 +181,9 @@ class EvolutionTask(Base):
         DateTime(timezone=True), nullable=True
     )
     last_heartbeat: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
 

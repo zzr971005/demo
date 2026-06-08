@@ -44,7 +44,7 @@ class FactorValueGenerator:
                 select(Candidate).where(
                     Candidate.symbol == symbol,
                     Candidate.generation == generation,
-                    Candidate.status == CandidateStatus.APPROVED
+                    Candidate.status == CandidateStatus.VALIDATED
                 )
             )
             candidates = result.scalars().all()

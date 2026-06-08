@@ -75,7 +75,7 @@ class SubscribeResponse(BaseModel):
 
 def get_market_service() -> MarketDataService:
     """获取行情服务实例"""
-    return get_market_data_service(mock=False)  # 使用真实数据
+    return get_market_data_service()  # 使用真实数据
 
 
 # ============ API端点 ============

@@ -38,7 +38,7 @@ class SymbolSwitch(Base):
     paper_candidate_id: Mapped[Optional[str]] = mapped_column(
         String(64), ForeignKey("candidates.id"), nullable=True
     )
-    group_name: Mapped[str] = mapped_column(String(8), default="A", server_default=text('A'))
+    group_name: Mapped[str] = mapped_column(String(8), default="A", server_default=text("'A'"))
     margin_per_lot: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     max_lots: Mapped[int] = mapped_column(Integer, default=1, server_default=text('1'))
     is_priority: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text('false'))

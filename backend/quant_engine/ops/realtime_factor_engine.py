@@ -173,7 +173,7 @@ class RealtimeFactorEngine:
         self,
         market_service: Optional[MarketDataService] = None,
     ):
-        self.market_service = market_service or get_market_data_service(mock=False)
+        self.market_service = market_service or get_market_data_service()
         self.calculators: Dict[str, FactorCalculator] = {}
         self.factor_values: Dict[str, FactorValue] = {}
         

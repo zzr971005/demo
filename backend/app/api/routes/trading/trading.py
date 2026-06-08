@@ -186,6 +186,14 @@ async def get_active_orders(
     ]
 
 
+@router.get("/orders/statistics")
+async def get_order_statistics(
+    order_mgr: OrderManager = Depends(get_order_mgr),
+):
+    """获取订单统计"""
+    return order_mgr.get_statistics()
+
+
 @router.get("/orders/{order_id}")
 async def get_order(
     order_id: str,
@@ -217,14 +225,6 @@ async def get_order(
         "comment": order.comment,
         "error_message": order.error_message,
     }
-
-
-@router.get("/orders/statistics")
-async def get_order_statistics(
-    order_mgr: OrderManager = Depends(get_order_mgr),
-):
-    """获取订单统计"""
-    return order_mgr.get_statistics()
 
 
 # ============== 仓位接口 ==============
@@ -280,6 +280,14 @@ async def get_non_flat_positions(
     ]
 
 
+@router.get("/positions/summary")
+async def get_position_summary(
+    position_trk: PositionTracker = Depends(get_position_trk),
+):
+    """获取仓位汇总"""
+    return position_trk.get_position_summary()
+
+
 @router.get("/positions/{symbol}")
 async def get_position(
     symbol: str,
@@ -304,14 +312,6 @@ async def get_position(
         "opened_at": position.opened_at.isoformat() if position.opened_at else None,
         "last_trade_at": position.last_trade_at.isoformat() if position.last_trade_at else None,
     }
-
-
-@router.get("/positions/summary")
-async def get_position_summary(
-    position_trk: PositionTracker = Depends(get_position_trk),
-):
-    """获取仓位汇总"""
-    return position_trk.get_position_summary()
 
 
 @router.post("/positions/{symbol}/close")

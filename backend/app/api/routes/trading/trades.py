@@ -10,7 +10,7 @@ from sqlalchemy import select, desc
 from app.api.deps import get_config
 from app.config import Settings
 from app.db import get_session
-from app.models import Trade, Candidate
+from app.models import Trade as TradeORM, Candidate
 from quant_engine.ops.tqsdk_trading import (
     get_trading_engine,
     TradingMode,
@@ -102,29 +102,29 @@ async def get_trades(
     settings: Settings = Depends(get_config),
 ) -> TradeListResponse:
     with get_session() as session:
-        query = select(Trade)
+        query = select(TradeORM)
         
         if symbol:
-            query = query.where(Trade.symbol == symbol.upper())
+            query = query.where(TradeORM.symbol == symbol.upper())
         if start_date:
-            query = query.where(Trade.entry_at >= start_date)
+            query = query.where(TradeORM.entry_at >= start_date)
         if end_date:
-            query = query.where(Trade.entry_at <= end_date)
+            query = query.where(TradeORM.entry_at <= end_date)
         
         # Get total count
-        count_query = select(Trade)
+        count_query = select(TradeORM)
         if symbol:
-            count_query = count_query.where(Trade.symbol == symbol.upper())
+            count_query = count_query.where(TradeORM.symbol == symbol.upper())
         if start_date:
-            count_query = count_query.where(Trade.entry_at >= start_date)
+            count_query = count_query.where(TradeORM.entry_at >= start_date)
         if end_date:
-            count_query = count_query.where(Trade.entry_at <= end_date)
+            count_query = count_query.where(TradeORM.entry_at <= end_date)
         
         total_result = session.execute(count_query)
         total = len(total_result.scalars().all())
         
         # Get paginated results
-        query = query.order_by(Trade.entry_at.desc()).limit(limit).offset(offset)
+        query = query.order_by(TradeORM.entry_at.desc()).limit(limit).offset(offset)
         result = session.execute(query)
         trades = result.scalars().all()
         
@@ -176,10 +176,10 @@ async def get_positions(
 ) -> PositionListResponse:
     with get_session() as session:
         # Get all trades that are not closed (exit_at is None)
-        query = select(Trade).where(Trade.exit_at.is_(None))
+        query = select(TradeORM).where(TradeORM.exit_at.is_(None))
         
         if symbol:
-            query = query.where(Trade.symbol == symbol.upper())
+            query = query.where(TradeORM.symbol == symbol.upper())
         
         result = session.execute(query)
         open_trades = result.scalars().all()
@@ -239,14 +239,14 @@ async def get_orders(
 ) -> OrderListResponse:
     with get_session() as session:
         # Get trades with PENDING status
-        query = select(Trade).where(Trade.status == "PENDING")
+        query = select(TradeORM).where(TradeORM.status == "PENDING")
         
         if symbol:
-            query = query.where(Trade.symbol == symbol.upper())
+            query = query.where(TradeORM.symbol == symbol.upper())
         if status:
-            query = query.where(Trade.status == status.upper())
+            query = query.where(TradeORM.status == status.upper())
         
-        query = query.order_by(Trade.entry_at.desc()).limit(limit)
+        query = query.order_by(TradeORM.entry_at.desc()).limit(limit)
         result = session.execute(query)
         pending_trades = result.scalars().all()
         

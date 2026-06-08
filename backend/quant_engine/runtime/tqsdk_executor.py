@@ -14,7 +14,7 @@ from decimal import Decimal
 
 try:
     from tqsdk import TqApi, TqAuth, TqKq
-    from tqsdk.obj import Order as TqOrder, Trade as TqTrade, Position as TqPosition
+    from tqsdk.objs import Order as TqOrder, Trade as TqTrade, Position as TqPosition
     TQSDK_AVAILABLE = True
 except ImportError:
     TQSDK_AVAILABLE = False

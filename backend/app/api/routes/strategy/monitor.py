@@ -29,9 +29,9 @@ async def list_strategies(
         query = select(StrategyMonitorStatus)
         
         if status:
-            query = query.where(StrategyMonitorStatus.status == status.upper())
+            query = query.where(StrategyMonitorStatus.status == status)
         
-        query = query.order_by(StrategyMonitorStatus.last_check_at.desc()).limit(limit)
+        query = query.order_by(StrategyMonitorStatus.updated_at.desc()).limit(limit)
         result = session.execute(query)
         strategies = result.scalars().all()
         
@@ -39,10 +39,13 @@ async def list_strategies(
             "strategies": [
                 {
                     "strategy_id": s.strategy_id,
+                    "symbol": s.symbol,
                     "status": s.status,
-                    "last_check_at": s.last_check_at.isoformat(),
-                    "health_score": s.health_score,
-                    "performance_metrics": eval(s.performance_metrics_json) if s.performance_metrics_json else {},
+                    "last_check_at": s.updated_at.isoformat() if s.updated_at else None,
+                    "last_signal": s.last_signal,
+                    "current_pnl": s.current_pnl,
+                    "current_pnl_pct": s.current_pnl_pct,
+                    "max_drawdown": s.max_drawdown,
                 }
                 for s in strategies
             ]
@@ -60,10 +63,13 @@ async def get_strategy(strategy_id: str) -> Dict[str, Any]:
         if strategy:
             return {
                 "strategy_id": strategy_id,
+                "symbol": strategy.symbol,
                 "status": strategy.status,
-                "last_check_at": strategy.last_check_at.isoformat(),
-                "health_score": strategy.health_score,
-                "performance": eval(strategy.performance_metrics_json) if strategy.performance_metrics_json else {},
+                "last_check_at": strategy.updated_at.isoformat() if strategy.updated_at else None,
+                "last_signal": strategy.last_signal,
+                "current_pnl": strategy.current_pnl,
+                "current_pnl_pct": strategy.current_pnl_pct,
+                "max_drawdown": strategy.max_drawdown,
             }
         else:
             raise HTTPException(status_code=404, detail=f"Strategy {strategy_id} not found")

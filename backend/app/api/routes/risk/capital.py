@@ -72,18 +72,18 @@ async def get_portfolio_metrics() -> Dict[str, Any]:
     """获取组合指标"""
     with get_session() as session:
         # Get the most recent portfolio metrics
-        query = select(PortfolioMetrics).order_by(PortfolioMetrics.evaluation_date.desc()).limit(1)
+        query = select(PortfolioMetrics).order_by(PortfolioMetrics.as_of_date.desc()).limit(1)
         result = session.execute(query)
         metrics = result.scalar_one_or_none()
         
         if metrics:
             return {
-                "annual_return": metrics.annual_return,
-                "annual_volatility": metrics.annual_volatility,
+                "annual_return": metrics.total_return,
+                "annual_volatility": metrics.volatility,
                 "sharpe_ratio": metrics.sharpe_ratio,
                 "max_drawdown": metrics.max_drawdown,
                 "total_capital": float(metrics.total_capital),
-                "evaluation_date": metrics.evaluation_date.isoformat(),
+                "evaluation_date": metrics.as_of_date.isoformat(),
             }
         else:
             return {

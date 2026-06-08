@@ -49,7 +49,7 @@ async def find_linked_trading_opportunities() -> Dict[str, Any]:
     with get_session() as session:
         # Get recent cross-market trades to find patterns
         query = select(CrossMarketTrade).order_by(
-            CrossMarketTrade.trade_date.desc()
+            CrossMarketTrade.created_at.desc()
         ).limit(100)
         result = session.execute(query)
         trades = result.scalars().all()

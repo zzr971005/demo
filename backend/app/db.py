@@ -134,6 +134,20 @@ def init_db() -> None:
         except Exception as e:
             logger.warning(f"[DB] TimescaleDB hypertable creation failed: {e}")
     
+    # Initialize the separate SQLite evolution store (its own Base/engine in
+    # quant_engine.core.models.evolution). Without this, tables such as
+    # evolution_factors / factor_live_stats never exist and routes 500 with
+    # "no such table".
+    try:
+        from quant_engine.core.models.evolution import (
+            Base as EvolutionBase,
+            sqlite_engine,
+        )
+        EvolutionBase.metadata.create_all(bind=sqlite_engine)
+        logger.info("[DB] SQLite evolution tables initialized")
+    except Exception as e:
+        logger.warning(f"[DB] SQLite evolution table init failed: {e}")
+    
     logger.info("[DB] All tables initialized")
 
 

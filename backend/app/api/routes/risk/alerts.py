@@ -119,7 +119,7 @@ async def get_alert_summary() -> Dict[str, Any]:
         unacknowledged = len(unack_result.scalars().all())
         
         # Count critical alerts
-        critical_query = select(AlertHistory).where(AlertHistory.level == "CRITICAL")
+        critical_query = select(AlertHistory).where(AlertHistory.severity == "critical")
         critical_result = session.execute(critical_query)
         critical = len(critical_result.scalars().all())
         

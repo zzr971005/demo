@@ -859,7 +859,7 @@ async def get_evolution_factors(
             # 构建查询条件
             conditions = [Candidate.symbol == symbol]
             if only_passed:
-                conditions.append(Candidate.status == CandidateStatus.APPROVED)
+                conditions.append(Candidate.status == CandidateStatus.VALIDATED)
 
             # 查询因子
             query = select(Candidate).where(*conditions).order_by(

@@ -128,7 +128,7 @@ async def calculate_correlation_matrix(
         with get_session() as session:
             query = select(Candidate).where(
                 Candidate.symbol == symbol,
-                Candidate.status == CandidateStatus.APPROVED,
+                Candidate.status == CandidateStatus.VALIDATED,
                 Candidate.ic_mean_24h.isnot(None)
             )
 
@@ -200,7 +200,7 @@ async def generate_strategies(
         with get_session() as session:
             query = select(Candidate).where(
                 Candidate.symbol == symbol,
-                Candidate.status == CandidateStatus.APPROVED,
+                Candidate.status == CandidateStatus.VALIDATED,
                 Candidate.ic_mean_24h.isnot(None)
             )
 
