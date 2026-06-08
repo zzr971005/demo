@@ -74,6 +74,10 @@ class FitnessConfig:
     # 因子有效性控制
     max_nan_ratio: float = 0.8  # 允许的最大NaN占比
 
+    # 防数据泄漏：归一化统计量与交易阈值仅用训练集拟合，禁止使用整段（含未来）样本。
+    # train_ratio: 训练集占比（按时间顺序取前 train_ratio 段），其余视为样本外。
+    train_ratio: float = 0.7
+
 
 # ---------------------------------------------------------------------------
 # 因子编译器
@@ -513,7 +517,14 @@ class FitnessEvaluator:
             )
         
         # 使用分位数归一化替代z-score标准化
-        factor_values = self._normalize_factor_quantile(factor_values)
+        # 防泄漏：仅用训练集（按时间顺序的前 train_ratio 段）拟合归一化统计量，
+        # 再应用到整段；测试段不参与统计量估计，消除样本内归一化泄漏。
+        _n_total = len(factor_values)
+        _train_end = max(10, int(_n_total * getattr(self.config, "train_ratio", 0.7)))
+        _train_end = min(_train_end, _n_total)
+        factor_values = self._normalize_factor_quantile(
+            factor_values, fit=factor_values[:_train_end]
+        )
         # 调试：输出标准化后的因子值统计
         logger.debug(f"个体 {individual.id} 标准化后因子值: min={factor_values.min():.4f}, max={factor_values.max():.4f}, mean={factor_values.mean():.4f}, std={factor_values.std():.4f}")
 
@@ -551,7 +562,9 @@ class FitnessEvaluator:
         self.factor_cache[expression] = factor_values.copy()
 
         # 动态交易信号阈值：使用分位数替代固定阈值
-        valid_factor = factor_values[np.isfinite(factor_values)]
+        # 防泄漏：交易阈值同样只用训练集分位数拟合，避免用未来数据设定阈值。
+        _train_norm = factor_values[:_train_end]
+        valid_factor = _train_norm[np.isfinite(_train_norm)]
         if len(valid_factor) > 10:
             dynamic_upper = np.percentile(valid_factor, 75)
             dynamic_lower = np.percentile(valid_factor, 25)
@@ -728,7 +741,9 @@ class FitnessEvaluator:
     def _normalize_factor(self, factor: np.ndarray) -> np.ndarray:
         """标准化因子值（z-score）"""
         # 去除NaN和Inf
-        clean = factor[np.isfinite(factor)]
+        # fit 为拟合统计量所用的样本（默认整段；传入训练集即可防泄漏）。
+        _src = fit if fit is not None else factor
+        clean = _src[np.isfinite(_src)]
         if len(clean) == 0:
             return factor
 
@@ -742,7 +757,9 @@ class FitnessEvaluator:
 
         return normalized
 
-    def _normalize_factor_quantile(self, factor: np.ndarray) -> np.ndarray:
+    def _normalize_factor_quantile(
+        self, factor: np.ndarray, fit: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         """使用分位数归一化标准化因子值"""
         # 去除NaN和Inf
         clean = factor[np.isfinite(factor)]
