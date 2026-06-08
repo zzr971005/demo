@@ -35,10 +35,11 @@ async def get_correlation_matrix(request: CorrelationMatrixRequest) -> Dict[str,
         
         for c in correlations:
             symbol_pair = c.symbol_pair  # "RB,MA"
-            if symbol_pair in matrix:
-                matrix[symbol_pair] = c.correlation
-                total_correlation += abs(c.correlation)
-                count += 1
+            # 原代码写成 `if symbol_pair in matrix:`，对刚初始化的空 dict 永远为假，
+            # 导致相关性矩阵永远返回空。应无条件写入。
+            matrix[symbol_pair] = c.correlation
+            total_correlation += abs(c.correlation)
+            count += 1
         
         avg_correlation = total_correlation / count if count > 0 else 0.0
         
