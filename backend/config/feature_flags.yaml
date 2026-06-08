@@ -1,0 +1,102 @@
+# 功能开关配置 - 可选启用新功能
+# 设置为 true 启用功能，false 禁用功能
+
+# 模拟交易功能
+simulation:
+  enabled: true
+  description: "模拟交易引擎"
+
+# 策略监控功能
+strategy_monitor:
+  enabled: true
+  description: "策略监控和评估"
+
+# 实盘衔接功能
+live_transition:
+  enabled: false
+  description: "实盘衔接（需要谨慎启用）"
+
+# 风控管理功能
+risk_management:
+  enabled: true
+  description: "风控管理"
+
+# 策略切换功能
+strategy_switch:
+  enabled: true
+  description: "策略切换管理"
+
+# 仓位限制配置
+position_limit:
+  enabled: true
+  description: "仓位限制配置"
+
+# 资金管理功能
+capital_management:
+  enabled: true
+  description: "资金管理"
+
+# 告警系统
+alert_system:
+  enabled: true
+  description: "告警系统"
+
+# 订单类型支持
+order_types:
+  enabled: true
+  description: "多种订单类型支持"
+
+# 市场微观结构分析
+microstructure:
+  enabled: false
+  description: "市场微观结构分析"
+
+# 组合优化
+portfolio_optimization:
+  enabled: false
+  description: "组合优化"
+
+# 数据质量监控
+data_quality:
+  enabled: false
+  description: "数据质量监控"
+
+# 流动性风险管理
+liquidity_risk:
+  enabled: false
+  description: "流动性风险管理"
+
+# 交易成本分析
+transaction_cost:
+  enabled: false
+  description: "交易成本分析"
+
+# 相关性分析
+correlation_analysis:
+  enabled: false
+  description: "策略相关性分析"
+
+# 回测实盘对比
+backtest_live_comparison:
+  enabled: false
+  description: "回测实盘对比"
+
+# 报告生成
+report_generation:
+  enabled: false
+  description: "自动化报告生成"
+
+# A/B测试
+ab_testing:
+  enabled: false
+  description: "策略A/B测试"
+
+# 跨市场交易
+cross_market_trading:
+  enabled: false
+  description: "跨市场交易"
+
+# 异常检测
+anomaly_detection:
+  enabled: false
+  description: "异常检测和自动恢复"

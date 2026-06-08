@@ -1,0 +1,32 @@
+# 实盘风控配置
+live_risk:
+  # 账户级风控
+  max_total_margin_ratio: 0.4  # 实盘总保证金占比40%（更严格）
+  daily_max_loss_ratio: 0.03  # 单日最大亏损3%
+  max_drawdown_ratio: 0.08  # 最大回撤8%
+
+  # 单品种风控
+  max_position_ratio: 0.2  # 单品种最大仓位20%（更严格）
+  max_positions_per_symbol: 1  # 每品种最多1个持仓
+  single_symbol_max_dd: 0.05  # 单品种最大回撤5%
+
+  # 策略动态分配（基于前沿研究：ensemble methods + dynamic allocation）
+  strategy_allocation_mode: "dynamic_weighted"  # 动态权重分配
+  allocation_method: "risk_parity"  # 风险平价分配
+  weight_update_frequency: "daily"  # 权重更新频率
+  min_weight_threshold: 0.05  # 最小权重阈值5%
+  max_weight_threshold: 0.6  # 最大权重阈值60%
+  ensemble_enabled: true  # 启用ensemble方法
+  ensemble_method: "gradient_based"  # 梯度更新方法
+
+  # 策略切换风控（柔性控制）
+  switch_cooldown_enabled: true  # 启用冷却期
+  switch_cooldown_hours: 6  # 冷却期6小时（更灵活）
+  switch_mode: "gradual"  # 渐进式切换
+  max_daily_weight_change: 0.3  # 每日最大权重变化30%
+  volatility_based_adjustment: true  # 基于波动率调整
+
+  # 紧急风控
+  emergency_close_all_threshold: 0.05  # 紧急平仓阈值5%
+  circuit_breaker_enabled: true  # 启用熔断
+  circuit_breaker_level: 3  # 熔断级别

@@ -1,0 +1,5 @@
+# 天勤交易配置
+tqsdk:
+  account: "15111339243"
+  password: "a971005@"
+  mode: "tqkq"  # tqkq: 快期模拟, tqsim: 本地模拟

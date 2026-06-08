@@ -1,0 +1,250 @@
+symbols:
+  low_margin:
+    MA:
+      name: "甲醇"
+      exchange: "CZCE"
+      lot: 10
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "A化工能源"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:00"]
+    RB:
+      name: "螺纹钢"
+      exchange: "SHFE"
+      lot: 10
+      margin_rate: 0.13
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "B黑色建材"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:00"]
+    M:
+      name: "豆粕"
+      exchange: "DCE"
+      lot: 10
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "C农产品"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:00"]
+    TA:
+      name: "PTA"
+      exchange: "CZCE"
+      lot: 5
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "A化工能源"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:00"]
+    FG:
+      name: "玻璃"
+      exchange: "CZCE"
+      lot: 20
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "B黑色建材"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:00"]
+    SR:
+      name: "白糖"
+      exchange: "CZCE"
+      lot: 10
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "C农产品"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:30"]
+    SA:
+      name: "纯碱"
+      exchange: "CZCE"
+      lot: 20
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "A化工能源"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:00"]
+    PP:
+      name: "聚丙烯"
+      exchange: "DCE"
+      lot: 5
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 15000
+      evolution_pool: 300
+      group: "A化工能源"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-23:00"]
+
+  high_margin:
+    AU:
+      name: "黄金"
+      exchange: "SHFE"
+      lot: 1000
+      margin_rate: 0.10
+      commission_rate: 0.0001
+      max_margin: 100000
+      evolution_pool: 300
+      group: "D贵金属金融"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-02:30"]
+    CU:
+      name: "铜"
+      exchange: "SHFE"
+      lot: 5
+      margin_rate: 0.12
+      commission_rate: 0.0001
+      max_margin: 80000
+      evolution_pool: 300
+      group: "D贵金属金融"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-01:00"]
+    SC:
+      name: "原油"
+      exchange: "INE"
+      lot: 1000
+      margin_rate: 0.15
+      commission_rate: 0.0001
+      max_margin: 80000
+      evolution_pool: 300
+      group: "A化工能源"
+      trading_hours:
+        day: ["09:00-10:15", "10:30-11:30", "13:30-15:00"]
+        night: ["21:00-02:30"]
+    IF:
+      name: "股指"
+      exchange: "CFFEX"
+      lot: 1
+      margin_rate: 0.12
+      commission_rate: 0.000023
+      close_today_commission_rate: 0.00023
+      max_margin: 200000
+      evolution_pool: 300
+      group: "D贵金属金融"
+      trading_hours:
+        day: ["09:30-11:30", "13:00-15:00"]
+        night: []
+      if_close_today_forbidden: true
+
+evolution:
+  main_cycle: "1H"
+  daily_evolution_time: "20:30"
+  generations: 60
+  population: 300
+  crossover_rate: 0.7
+  mutation_rate: 0.2
+  train_months: 6
+  validation_months: 6
+  test_months: 6
+  seed_reserve_gens: 10
+  seed_reserve_ratio: 0.2
+  template_ratio: 0.6
+  max_tree_depth: 8
+  stages:
+    - name: "stage1_single_factor"
+      max_tree_depth: 4
+      min_ic: 0.03
+    - name: "stage2_combo"
+      min_sharpe: 0.8
+      cross_family_required: true
+    - name: "stage3_template_fill"
+      min_test_sharpe: 0.6
+
+risk:
+  max_total_margin_ratio: 0.8
+  single_symbol_max_dd: 0.10
+  daily_max_loss: 0.05
+  manual_switch_required: true
+  if_close_today_forbidden: true
+  max_positions_per_symbol: 3
+  circuit_breaker_consecutive_errors: 3
+  max_margin_per_symbol: 15000
+
+families:
+  momentum:
+    weight: 0.20
+    primitives:
+      - ts_return
+      - ts_corr_ma
+      - cs_rank_return
+      - ts_slope
+      - ts_momentum_break
+  mean_reversion:
+    weight: 0.15
+    primitives:
+      - zscore
+      - rsi
+      - distance_from_ma
+      - bb_position
+      - ts_min_max_position
+  volatility:
+    weight: 0.15
+    primitives:
+      - ts_std
+      - atr
+      - ts_range
+      - vol_regime
+      - realized_vol
+  price_volume:
+    weight: 0.15
+    primitives:
+      - ts_corr_pv
+      - volume_zscore
+      - obv
+      - volume_price_divergence
+      - money_flow
+  term_structure:
+    weight: 0.10
+    primitives:
+      - basis
+      - roll_yield
+      - spread_nf
+      - basis_zscore
+      - contango_ratio
+  open_interest:
+    weight: 0.10
+    primitives:
+      - oi_change
+      - oi_price_divergence
+      - oi_vol_ratio
+      - oi_zscore
+      - oi_momentum
+  microstructure:
+    weight: 0.10
+    primitives:
+      - night_gap
+      - opening_range
+      - idr_ratio
+      - night_gap_filter
+      - session_return
+  macro_proxy:
+    weight: 0.05
+    primitives:
+      - comex_gold_return
+      - crude_return
+      - usd_index
+      - a50_return
+      - bond_yield_spread

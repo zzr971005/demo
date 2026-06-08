@@ -1,0 +1,77 @@
+# 因子池管理配置文件
+# Factor Pool Management Configuration
+
+# 因子池大小
+# 挖掘历史中保留的最佳因子数量
+factor_pool_size: 300
+
+# 滚动窗口配置
+# 使用滚动窗口评估因子表现，而非全局历史
+rolling_window:
+  enabled: true
+  size: 50  # 滚动窗口大小（代数）
+
+# 因子衰减评估
+# 检测因子是否衰减，衰减的因子会被降低评分权重
+decay_evaluation:
+  enabled: true
+  threshold: 0.3  # 衰减阈值：最近表现比历史最佳下降30%即认为衰减
+
+# 定期重新平衡
+# 不每代都竞争淘汰，而是定期重新平衡
+rebalancing:
+  enabled: true
+  period: 10  # 重新平衡周期（代数）
+
+# 小生境机制
+# 按性能空间划分小生境，保持因子多样性
+# 注意：启用此机制可能牺牲全局最优性
+niche_mechanism:
+  enabled: true  # 启用以保持因子多样性
+  niche_count: 125  # 5x5x5小生境数量
+
+# 综合评分权重
+# 综合评分 = sharpe_norm * sharpe_weight + calmar_norm * calmar_weight + 
+#            drawdown_score * drawdown_weight + win_rate_norm * win_rate_weight + 
+#            trades_norm * trades_weight
+composite_score_weights:
+  sharpe: 0.4      # 夏普比率权重
+  calmar: 0.2      # 卡玛比率权重
+  drawdown: 0.2    # 最大回撤权重
+  win_rate: 0.1    # 胜率权重
+  trades: 0.1      # 交易次数权重
+
+# IC权重配置
+ic_weights:
+  window_4h: 0.5
+  window_24h: 0.3
+  window_168h: 0.2
+
+# 策略选择配置
+strategy_selection:
+  count: 5  # 选择5个策略
+  min_correlation_threshold: 0.7  # 相关性阈值
+  category_distribution:
+    fast: 2    # 快速衰减类2个
+    medium: 2   # 中等衰减类2个
+    slow: 1     # 慢速衰减类1个
+
+# 策略轮换配置
+rotation:
+  enabled: true
+  period_days: 14  # 每2周轮换
+  score_improvement_threshold: 0.1  # 新因子需提升10%
+  correlation_threshold: 0.3  # 新因子与当前策略相关性<0.3
+  freeze_period_days: 14  # 回退后冻结14天
+
+# 评分归一化参数
+# 用于将原始指标归一化到[0,1]区间
+normalization:
+  sharpe:
+    min: -2  # 夏普最小值
+    max: 5   # 夏普最大值
+  calmar:
+    min: 0   # 卡玛最小值
+    max: 5   # 卡玛最大值
+  trades:
+    max: 100  # 交易次数最大值
