@@ -156,13 +156,15 @@ class SignalConverter:
         capital = init_capital
 
         for i in range(1, n):
-            if np.isnan(factor[i]) or np.isnan(close_px[i]):
+            # T-1 截断：用上一根 K 线的因子值决策，避免与向量化引擎不一致的前视偏差
+            signal_factor = factor[i - 1]
+            if np.isnan(signal_factor) or np.isnan(close_px[i]):
                 continue
 
             sig = 0
-            if factor[i] > self.upper_threshold:
+            if signal_factor > self.upper_threshold:
                 sig = 1
-            elif factor[i] < self.lower_threshold:
+            elif signal_factor < self.lower_threshold:
                 sig = -1
 
             if self.direction_mode == 1 and sig < 0:
