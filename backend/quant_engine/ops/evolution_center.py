@@ -636,8 +636,10 @@ class EvolutionCenter:
             self.evolution_result = result
             
             # 最终过拟合检验和因子筛选
+            # 始终把进化个体转换为 final_factors；过拟合检验为可选项，
+            # 不应因关闭检验而出现“成功进化却 0 因子”的静默错误。
+            self._process_final_results(data)
             if self.task_config.enable_overfitting_check:
-                self._process_final_results(data)
                 # 更新 passed_factors 到数据库（仅当从未设置过时才更新，保留定期验证的结果）
                 try:
                     from app.models import EvolutionTask
@@ -694,11 +696,23 @@ class EvolutionCenter:
         )
         
         # 过拟合检验
-        checked_results = self.overfitting_checker.check_final_candidates(
-            top_individuals,
-            data,
-            self.task_config.symbol,
-        )
+        if self.task_config.enable_overfitting_check:
+            checked_results = self.overfitting_checker.check_final_candidates(
+                top_individuals,
+                data,
+                self.task_config.symbol,
+            )
+        else:
+            class _PassCheck:
+                pbo = 0.0
+                dsr = 0.0
+                wfe = 0.0
+
+                @staticmethod
+                def overall_passed() -> bool:
+                    return True
+
+            checked_results = [(ind, _PassCheck()) for ind in top_individuals]
         
         # 转换为因子记录
         self.final_factors = []
@@ -732,7 +746,48 @@ class EvolutionCenter:
         
         # 按夏普排序
         self.final_factors.sort(key=lambda x: x.sharpe, reverse=True)
-    
+
+        # 静默错误防护：不同表达式却完全相同表现 = 信号实质等价（退化）。
+        # get_unique_best 仅按表达式字符串去重，无法识别“不同写法、同一信号”。
+        # 这里按表现指纹再次去重，仅保留表达式最简（节点数最少）的一只，
+        # 避免把实质等价的因子当成多个独立因子上报（用户核心关切）。
+        self.final_factors = self._dedup_by_performance(self.final_factors)
+
+    @staticmethod
+    def _dedup_by_performance(factors):
+        """按表现指纹去重，保留表达式最简者；返回去重后的列表。"""
+        def fingerprint(f):
+            return (
+                round(f.sharpe, 8),
+                round(f.total_return, 8),
+                round(f.max_drawdown, 8),
+                round(f.win_rate, 8),
+                int(f.total_trades),
+            )
+
+        best_by_fp = {}
+        collapsed = 0
+        for f in factors:
+            fp = fingerprint(f)
+            if fp[:4] == (0.0, 0.0, 0.0, 0.0) and fp[4] == 0:
+                best_by_fp[(id(f),)] = f
+                continue
+            existing = best_by_fp.get(fp)
+            if existing is None:
+                best_by_fp[fp] = f
+            else:
+                collapsed += 1
+                if (f.node_count or 0) < (existing.node_count or 0):
+                    best_by_fp[fp] = f
+        if collapsed:
+            logger.warning(
+                "[去重] 检测到 %d 个表达式不同但表现完全相同的因子（信号实质等价），"
+                "已折叠为最简表达式。这通常意味着算子忽略了某个入参或信号被符号化，"
+                "请关注是否为退化因子。",
+                collapsed,
+            )
+        return sorted(best_by_fp.values(), key=lambda x: x.sharpe, reverse=True)
+
     def _save_results(self) -> None:
         """保存进化结果"""
         save_path = self.task_config.save_path
