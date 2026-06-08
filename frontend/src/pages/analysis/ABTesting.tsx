@@ -50,15 +50,15 @@ export default function ABTesting() {
         body: JSON.stringify(newTest),
       })
       if (res.ok) {
-        alert('A/B²âÊÔ´´½¨³É¹¦')
+        alert('A/Bæµ‹è¯•åˆ›å»ºæˆåŠŸ')
         fetchTests()
         setNewTest({ name: '', control_strategy: '', test_strategy: '' })
       } else {
-        alert('A/B²âÊÔ´´½¨Ê§°Ü')
+        alert('A/Bæµ‹è¯•åˆ›å»ºå¤±è´¥')
       }
     } catch (error) {
       console.error('Failed to create test:', error)
-      alert('A/B²âÊÔ´´½¨Ê§°Ü')
+      alert('A/Bæµ‹è¯•åˆ›å»ºå¤±è´¥')
     } finally {
       setLoading(false)
     }
@@ -88,79 +88,79 @@ export default function ABTesting() {
       stopped: 'destructive',
     }
     const labels: Record<string, string> = {
-      running: 'ÔËĞĞÖĞ',
-      completed: 'ÒÑÍê³É',
-      stopped: 'ÒÑÍ£Ö¹',
+      running: 'è¿è¡Œä¸­',
+      completed: 'å·²å®Œæˆ',
+      stopped: 'å·²åœæ­¢',
     }
     return <Badge variant={variants[status]}>{labels[status]}</Badge>
   }
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold">A/B²âÊÔ</h1>
+      <h1 className="text-3xl font-bold">A/Bæµ‹è¯•</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>´´½¨A/B²âÊÔ</CardTitle>
-          <CardDescription>¶Ô±ÈÁ½¸ö²ßÂÔµÄ±íÏÖ</CardDescription>
+          <CardTitle>åˆ›å»ºA/Bæµ‹è¯•</CardTitle>
+          <CardDescription>å¯¹æ¯”ä¸¤ä¸ªç­–ç•¥çš„è¡¨ç°</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium">²âÊÔÃû³Æ</label>
+              <label className="text-sm font-medium">æµ‹è¯•åç§°</label>
               <Input
-                placeholder="²âÊÔÃû³Æ"
+                placeholder="æµ‹è¯•åç§°"
                 value={newTest.name}
                 onChange={(e) => setNewTest({ ...newTest, name: e.target.value })}
               />
             </div>
             <div>
-              <label className="text-sm font-medium">¶ÔÕÕ×é²ßÂÔ</label>
+              <label className="text-sm font-medium">å¯¹ç…§ç»„ç­–ç•¥</label>
               <Input
-                placeholder="¶ÔÕÕ×é²ßÂÔID"
+                placeholder="å¯¹ç…§ç»„ç­–ç•¥ID"
                 value={newTest.control_strategy}
                 onChange={(e) => setNewTest({ ...newTest, control_strategy: e.target.value })}
               />
             </div>
             <div>
-              <label className="text-sm font-medium">²âÊÔ×é²ßÂÔ</label>
+              <label className="text-sm font-medium">æµ‹è¯•ç»„ç­–ç•¥</label>
               <Input
-                placeholder="²âÊÔ×é²ßÂÔID"
+                placeholder="æµ‹è¯•ç»„ç­–ç•¥ID"
                 value={newTest.test_strategy}
                 onChange={(e) => setNewTest({ ...newTest, test_strategy: e.target.value })}
               />
             </div>
           </div>
           <Button className="mt-4" onClick={handleCreateTest} disabled={loading}>
-            {loading ? '´´½¨ÖĞ..' : '´´½¨²âÊÔ'}
+            {loading ? 'åˆ›å»ºä¸­..' : 'åˆ›å»ºæµ‹è¯•'}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>A/B²âÊÔÁĞ±í</CardTitle>
+          <CardTitle>A/Bæµ‹è¯•åˆ—è¡¨</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>²âÊÔID</TableHead>
-                <TableHead>Ãû³Æ</TableHead>
-                <TableHead>¶ÔÕÕ×é²ßÂÔ</TableHead>
-                <TableHead>²âÊÔ×é²ßÂÔ</TableHead>
-                <TableHead>×´Ì¬</TableHead>
-                <TableHead>¶ÔÕÕ×éÊÕÒæ</TableHead>
-                <TableHead>²âÊÔ×éÊÕÒæ</TableHead>
-                <TableHead>ÏÔÖøĞÔ</TableHead>
-                <TableHead>²Ù×÷</TableHead>
+                <TableHead>æµ‹è¯•ID</TableHead>
+                <TableHead>åç§°</TableHead>
+                <TableHead>å¯¹ç…§ç»„ç­–ç•¥</TableHead>
+                <TableHead>æµ‹è¯•ç»„ç­–ç•¥</TableHead>
+                <TableHead>çŠ¶æ€</TableHead>
+                <TableHead>å¯¹ç…§ç»„æ”¶ç›Š</TableHead>
+                <TableHead>æµ‹è¯•ç»„æ”¶ç›Š</TableHead>
+                <TableHead>æ˜¾è‘—æ€§</TableHead>
+                <TableHead>æ“ä½œ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tests.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center text-muted-foreground">
-                    ÔİÎŞA/B²âÊÔ
+                    æš‚æ— A/Bæµ‹è¯•
                   </TableCell>
                 </TableRow>
               ) : (
@@ -189,7 +189,7 @@ export default function ABTesting() {
                           variant="outline"
                           onClick={() => handleStopTest(test.test_id)}
                         >
-                          Í£Ö¹
+                          åœæ­¢
                         </Button>
                       )}
                     </TableCell>

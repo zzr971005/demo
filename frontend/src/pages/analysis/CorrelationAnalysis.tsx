@@ -168,7 +168,7 @@ export default function CorrelationAnalysis() {
 
     <div className="p-6 space-y-6">
 
-      <h1 className="text-3xl font-bold">Ïà¹ØÐÔ·ÖÎö</h1>
+      <h1 className="text-3xl font-bold">ç›¸å…³æ€§åˆ†æž</h1>
 
 
 
@@ -176,9 +176,9 @@ export default function CorrelationAnalysis() {
 
         <CardHeader>
 
-          <CardTitle>Ïà¹ØÐÔ¾ØÕó</CardTitle>
+          <CardTitle>ç›¸å…³æ€§çŸ©é˜µ</CardTitle>
 
-          <CardDescription>·ÖÎöÆ·ÖÖ¼äµÄÏà¹ØÐÔ</CardDescription>
+          <CardDescription>åˆ†æžå“ç§é—´çš„ç›¸å…³æ€§</CardDescription>
 
         </CardHeader>
 
@@ -186,7 +186,7 @@ export default function CorrelationAnalysis() {
 
           <div className="mb-4">
 
-            <label className="text-sm font-medium">Æ·ÖÖÁÐ±í£¨¶ººÅ·Ö¸ô£©</label>
+            <label className="text-sm font-medium">å“ç§åˆ—è¡¨ï¼ˆé€—å·åˆ†éš”ï¼‰</label>
 
             <Input
 
@@ -202,7 +202,7 @@ export default function CorrelationAnalysis() {
 
           <Button onClick={fetchMatrix} disabled={loading}>
 
-            {loading ? '¼ÆËãÖÐ..' : '¼ÆËãÏà¹ØÐÔ'}
+            {loading ? 'è®¡ç®—ä¸­..' : 'è®¡ç®—ç›¸å…³æ€§'}
 
           </Button>
 
@@ -220,7 +220,7 @@ export default function CorrelationAnalysis() {
 
             <CardHeader>
 
-              <CardTitle>Ïà¹ØÐÔ¾ØÕó</CardTitle>
+              <CardTitle>ç›¸å…³æ€§çŸ©é˜µ</CardTitle>
 
             </CardHeader>
 
@@ -290,7 +290,7 @@ export default function CorrelationAnalysis() {
 
               <div className="mt-4">
 
-                <span className="text-sm">Æ½¾ùÏà¹ØÐÔ </span>
+                <span className="text-sm">å¹³å‡ç›¸å…³æ€§ </span>
 
                 <span className="font-bold">{matrix.avg_correlation.toFixed(3)}</span>
 
@@ -306,7 +306,7 @@ export default function CorrelationAnalysis() {
 
             <CardHeader>
 
-              <CardTitle>¸ßÏà¹ØÐÔ²ßÂÔ¶Ô</CardTitle>
+              <CardTitle>é«˜ç›¸å…³æ€§ç­–ç•¥å¯¹</CardTitle>
 
             </CardHeader>
 
@@ -318,11 +318,11 @@ export default function CorrelationAnalysis() {
 
                   <TableRow>
 
-                    <TableHead>Æ·ÖÖ1</TableHead>
+                    <TableHead>å“ç§1</TableHead>
 
-                    <TableHead>Æ·ÖÖ2</TableHead>
+                    <TableHead>å“ç§2</TableHead>
 
-                    <TableHead>Ïà¹ØÐÔ</TableHead>
+                    <TableHead>ç›¸å…³æ€§</TableHead>
 
                   </TableRow>
 
@@ -336,7 +336,7 @@ export default function CorrelationAnalysis() {
 
                       <TableCell colSpan={3} className="text-center text-muted-foreground">
 
-                        ÔÝÎÞ¸ßÏà¹ØÐÔ²ßÂÔ¶Ô
+                        æš‚æ— é«˜ç›¸å…³æ€§ç­–ç•¥å¯¹
 
                       </TableCell>
 
@@ -382,7 +382,7 @@ export default function CorrelationAnalysis() {
 
             <CardHeader>
 
-              <CardTitle>·ÖÉ¢»¯½¨Òé</CardTitle>
+              <CardTitle>åˆ†æ•£åŒ–å»ºè®®</CardTitle>
 
             </CardHeader>
 
@@ -394,13 +394,13 @@ export default function CorrelationAnalysis() {
 
                   <TableRow>
 
-                    <TableHead>Æ·ÖÖ</TableHead>
+                    <TableHead>å“ç§</TableHead>
 
-                    <TableHead>µ±Ç°È¨ÖØ</TableHead>
+                    <TableHead>å½“å‰æƒé‡</TableHead>
 
-                    <TableHead>½¨ÒéÈ¨ÖØ</TableHead>
+                    <TableHead>å»ºè®®æƒé‡</TableHead>
 
-                    <TableHead>Ô­Òò</TableHead>
+                    <TableHead>åŽŸå› </TableHead>
 
                   </TableRow>
 
@@ -414,7 +414,7 @@ export default function CorrelationAnalysis() {
 
                       <TableCell colSpan={4} className="text-center text-muted-foreground">
 
-                        ÔÝÎÞ½¨Òé
+                        æš‚æ— å»ºè®®
 
                       </TableCell>
 
