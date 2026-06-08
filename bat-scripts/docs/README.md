@@ -3,7 +3,7 @@
 ## Folder Structure
 
 ```
-bat启动文件夹/
+bat-scripts/
 ├── start-dev.bat          # Development mode startup (recommended)
 ├── start-frontend.bat     # Frontend only startup
 ├── start.bat              # Full service launcher
@@ -16,7 +16,7 @@ bat启动文件夹/
 
 Double-click or run in terminal:
 ```powershell
-.\bat启动文件夹\start-dev.bat
+.\bat-scripts\start-dev.bat
 ```
 
 **What it does:**
@@ -34,7 +34,7 @@ Double-click or run in terminal:
 ### 2. Frontend Only
 
 ```powershell
-.\bat启动文件夹\start-frontend.bat
+.\bat-scripts\start-frontend.bat
 ```
 
 **Use case:** When backend is already running and you only need to work on UI.
@@ -42,7 +42,7 @@ Double-click or run in terminal:
 ### 3. Full Service Mode
 
 ```powershell
-.\bat启动文件夹\start.bat
+.\bat-scripts\start.bat
 ```
 
 **What it does:**
@@ -161,7 +161,7 @@ npm install
 
 Simply run:
 ```powershell
-.\bat启动文件夹\start-dev.bat
+.\bat-scripts\start-dev.bat
 ```
 
 This does all of the above automatically and opens separate windows for each service.

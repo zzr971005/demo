@@ -210,7 +210,7 @@ class TimescaleHub:
                         f"  1. PostgreSQL 服务是否运行: sc query postgresql-x64-17\n"
                         f"  2. 数据库端口是否监听: netstat -an | findstr 5432\n"
                         f"  3. 用户名密码是否正确: qmt/qmt_secret\n"
-                        f"  4. 运行诊断脚本: bat启动文件夹\\检查数据库状态.bat"
+                        f"  4. 运行诊断脚本: bat-scripts\\检查数据库状态.bat"
                     ) from e
                     
             except Exception as e:

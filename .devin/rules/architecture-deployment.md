@@ -40,7 +40,7 @@
 ```bash
 # 确保 PostgreSQL 和 Redis 本地服务已启动
 # 然后通过 bat 启动脚本启动前后端
-bat启动文件夹\启动中心_增强版.bat
+bat-scripts\启动中心_增强版.bat
 ```
 
 ### 4.2 独立终端（开发调试）

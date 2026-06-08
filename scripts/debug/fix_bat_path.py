@@ -158,7 +158,7 @@ echo.
 pause
 '''
 
-with open(r'd:\期货自动进化因子挖掘系统\bat启动文件夹\init-data.bat', 'w', encoding='gbk') as f:
+with open(r'd:\期货自动进化因子挖掘系统\bat-scripts\init-data.bat', 'w', encoding='gbk') as f:
     f.write(bat_content)
 
 print('文件已保存，编码: GBK (936)')

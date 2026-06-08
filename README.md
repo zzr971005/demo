@@ -47,11 +47,11 @@
 #### 🎯 启动中心（推荐）
 
 ```bash
-# 进入项目目录
-cd d:\期货自动进化因子挖掘系统
+# 进入项目根目录（克隆下来的仓库目录）
+cd <项目根目录>
 
 # 双击运行启动中心
-bat启动文件夹\启动中心_增强版.bat
+bat-scripts\启动中心_增强版.bat
 ```
 
 启动中心选项：
@@ -66,7 +66,7 @@ bat启动文件夹\启动中心_增强版.bat
 
 ### 启动脚本说明
 
-#### 📂 bat启动文件夹（推荐使用）
+#### 📂 bat-scripts（推荐使用）
 
 | 脚本 | 用途 | 说明 |
 |------|------|------|
@@ -87,7 +87,7 @@ bat启动文件夹\启动中心_增强版.bat
 ```
 1. 确保PostgreSQL和Redis服务已安装并启动
 2. 配置TQSDK账户信息（在.env文件中设置TQSDK_ACCOUNT和TQSDK_PASSWORD）
-3. 运行 bat启动文件夹\启动中心_增强版.bat
+3. 运行 bat-scripts\启动中心_增强版.bat
 4. 选择 [3] 仅启动基础设施（启动PostgreSQL和Redis）
 5. 选择 [6] 数据初始化，下载历史K线数据（首次使用必须）
 6. 选择启动模式：
@@ -156,8 +156,8 @@ bat启动文件夹\启动中心_增强版.bat
 ### 本地开发
 
 ```bash
-# 设置 PYTHONPATH
-$env:PYTHONPATH="d:\期货自动进化因子挖掘系统"
+# 设置 PYTHONPATH 为项目根目录
+$env:PYTHONPATH="<项目根目录>"
 
 # 安装依赖
 cd backend
@@ -181,8 +181,8 @@ npm run dev
 ### 运行测试
 
 ```bash
-# 设置 PYTHONPATH
-$env:PYTHONPATH="d:\期货自动进化因子挖掘系统"
+# 设置 PYTHONPATH 为项目根目录
+$env:PYTHONPATH="<项目根目录>"
 
 # 运行所有测试
 python -m pytest backend/tests/ -v
@@ -195,26 +195,37 @@ python -m pytest backend/tests/test_dsl.py -v
 
 ```
 .
-├── backend/
-│   ├── app/
+├── backend/                 # FastAPI 后端 + 量化引擎
+│   ├── app/                 # Web 应用层
 │   │   ├── api/routes/      # API 路由
 │   │   ├── main.py          # FastAPI 入口
 │   │   ├── models.py        # SQLAlchemy 模型
 │   │   └── config.py        # 配置管理
-│   ├── quant_engine/        # 量化引擎
+│   ├── quant_engine/        # 量化引擎（因子 DSL / 进化 / 回测 / 执行）
 │   │   ├── factors/         # 因子 DSL / 注册表 / 验证器
-│   │   ├── validation/      # 回测引擎
-│   │   ├── core/            # 候选策略状态机
+│   │   ├── ops/             # 进化中心
+│   │   ├── runtime/         # 模拟 / 执行引擎
+│   │   ├── data/            # 数据中心
 │   │   └── ...
+│   ├── alembic/             # 数据库迁移
+│   ├── config/              # 因子池等 YAML 配置
+│   ├── scripts/             # 后端维护 / 初始化脚本
 │   ├── tests/               # 测试套件
 │   ├── pyproject.toml       # Poetry 依赖
-│   └── scripts/maintenance/ # 维护脚本
-├── frontend/
-│   ├── src/                 # React 源码
+│   └── poetry.lock          # 锁定依赖（已纳入版本控制）
+├── frontend/                # React 19 + TypeScript + Vite 前端
+│   ├── src/                 # 前端源码
 │   └── package.json
-├── bat启动文件夹/            # 启动脚本（推荐）
-│   ├── 启动中心.bat         # 统一启动入口
-│   └── ...
+├── bat-scripts/             # Windows 启动脚本集合（启动中心、各服务启动）
+├── scripts/                 # 跨用途脚本（init.sh、调试与维护工具）
+├── docs/                    # 项目文档（架构、规格、开发日志等）
+├── tqsdk-skills/            # TQSDK 交易与数据使用技能 / 笔记
+├── .devin/                  # Devin 规则、规格与工作流
+├── launcher.ps1             # PowerShell 启动器
+├── start_*.bat              # 单服务快捷启动脚本
+├── .env.example             # 环境变量模板
+├── PROGRESS.md              # 开发进度
+├── TECH_DEBT.md             # 技术债记录
 └── README.md
 ```
 
@@ -232,23 +243,23 @@ python -m pytest backend/tests/test_dsl.py -v
 
 ```bash
 # 检查服务状态
-运行 bat启动文件夹\启动中心_增强版.bat
+运行 bat-scripts\启动中心_增强版.bat
 选择 [7] 检查服务状态
 
 # 检查数据库状态
-运行 bat启动文件夹\启动中心_增强版.bat
+运行 bat-scripts\启动中心_增强版.bat
 选择 [8] 检查数据库状态
 
 # 重启所有服务
-运行 bat启动文件夹\启动中心_增强版.bat
+运行 bat-scripts\启动中心_增强版.bat
 选择 [9] 重启所有服务
 
 # 停止所有服务
-运行 bat启动文件夹\启动中心_增强版.bat
+运行 bat-scripts\启动中心_增强版.bat
 选择 [10] 停止所有服务
 
 # 清理端口占用
-运行 bat启动文件夹\启动中心_增强版.bat
+运行 bat-scripts\启动中心_增强版.bat
 选择 [11] 清理端口占用
 ```
 
@@ -370,7 +381,7 @@ Search → Replay → Validation → Demo → IC筛选
 
 ```bash
 # 方法1：通过启动中心
-运行 bat启动文件夹\启动中心_增强版.bat
+运行 bat-scripts\启动中心_增强版.bat
 选择 [8] 检查数据库状态
 
 # 方法2：手动执行
@@ -427,13 +438,15 @@ composite_score_weights:
   trades: 0.1
 ```
 
-## GitHub配置
+## 获取与贡献
 
-### Personal Access Token
+```bash
+# 克隆仓库
+git clone https://github.com/zzr971005/demo.git
+cd demo
+```
 
-GitHub Personal Access Token: `<YOUR_GITHUB_PERSONAL_ACCESS_TOKEN>`
-
-**注意**: 此Token用于推送代码到GitHub仓库，请妥善保管，不要泄露。
+> **安全提示**：请勿将任何密钥（GitHub Token、TQSDK 账号密码等）写入代码或文档。敏感信息一律放入本地 `.env` 文件（已被 `.gitignore` 忽略），可参考 `.env.example` 模板。
 
 ## 许可证
 

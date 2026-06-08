@@ -6,7 +6,7 @@
 ## 📁 文件结构
 
 ```
-bat启动文件夹/
+bat-scripts/
 ├── start-dev.bat          # 基础开发模式
 ├── start-dev-pro.bat      # 增强版开发模式 ⭐推荐
 ├── start-backend-only.bat # 仅启动后端
@@ -32,7 +32,7 @@ bat启动文件夹/
 **双击运行** `start-dev-pro.bat` 或：
 
 ```powershell
-.\bat启动文件夹\start-dev-pro.bat
+.\bat-scripts\start-dev-pro.bat
 ```
 
 **功能特点：**
@@ -55,19 +55,19 @@ bat启动文件夹/
 
 2. **启动基础设施**
    ```powershell
-   .\bat启动文件夹\start-dev-pro.bat
+   .\bat-scripts\start-dev-pro.bat
    # 选择 [2] 仅启动基础设施
    ```
 
 3. **下载历史数据**（重要）
    ```powershell
-   .\bat启动文件夹\init-data.bat
+   .\bat-scripts\init-data.bat
    # 选择 [1] 增量更新
    ```
 
 4. **启动完整服务**
    ```powershell
-   .\bat启动文件夹\start-dev-pro.bat
+   .\bat-scripts\start-dev-pro.bat
    # 选择 [1] 全部启动
    ```
 
@@ -225,7 +225,7 @@ bat启动文件夹/
 **解决：**
 ```powershell
 # 方法 1：一键清理
-.\bat启动文件夹\clean-ports.bat
+.\bat-scripts\clean-ports.bat
 
 # 方法 2：手动查找并终止
 netstat -ano | findstr "8000"
@@ -384,7 +384,7 @@ docker-compose logs -f redis
 ### 查看帮助脚本
 ```powershell
 # 检查服务状态
-.\bat启动文件夹\check-status.bat
+.\bat-scripts\check-status.bat
 ```
 
 ---
@@ -410,4 +410,4 @@ docker-compose logs -f redis
 
 **祝开发顺利！** 🎉
 
-> 💡 **提示：** 建议将 `bat启动文件夹` 添加到文件资源管理器快速访问，这样可以一键启动。
+> 💡 **提示：** 建议将 `bat-scripts` 添加到文件资源管理器快速访问，这样可以一键启动。
