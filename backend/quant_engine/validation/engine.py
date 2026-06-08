@@ -103,7 +103,11 @@ def _nb_backtest_core(
     slippage = slippage_ticks * tick_size
     
     for i in range(1, n):
-        if np.isnan(factor[i]) or np.isnan(close_px[i]):
+        # T-1 截断：用上一根 K 线的因子值做决策，再在本根成交。
+        # 否则 factor[i] 内含 close[i]，又在 close[i] 成交，构成前视偏差
+        # （用本根收盘价算出的信号又用同一根收盘价成交），会系统性虚高回测绩效。
+        signal_factor = factor[i - 1]
+        if np.isnan(signal_factor) or np.isnan(close_px[i]):
             equity[i] = capital
             positions[i] = pos
             margin_used[i] = margin_used[i - 1]
@@ -111,9 +115,9 @@ def _nb_backtest_core(
             continue
 
         sig = 0
-        if factor[i] > upper_threshold:
+        if signal_factor > upper_threshold:
             sig = 1
-        elif factor[i] < lower_threshold:
+        elif signal_factor < lower_threshold:
             sig = -1
 
         if direction_mode == 1 and sig < 0:
