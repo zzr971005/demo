@@ -219,6 +219,25 @@ class GenerationStats(Base):
     best_ic: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     avg_ic: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     
+    # 夏普分布（写入端 _save_generation_stats / 读取端 /evolution/generations 依赖）
+    max_sharpe: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    min_sharpe: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    top_10_avg_sharpe: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # 适应度
+    avg_fitness: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    best_fitness: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # 种群结构
+    unique_expressions: Mapped[int] = mapped_column(Integer, default=0, server_default=text('0'))
+    population_size: Mapped[int] = mapped_column(Integer, default=0, server_default=text('0'))
+    elite_count: Mapped[int] = mapped_column(Integer, default=0, server_default=text('0'))
+
+    # 过拟合检验指标
+    pbo: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    dsr: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    wfe: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
     # 多样性指标
     diversity_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     

@@ -335,6 +335,31 @@ class EvolutionCenter:
         self.on_generation_complete: Optional[Callable[[int, GenerationStats], None]] = None
         self.on_evolution_complete: Optional[Callable[[EvolutionResult], None]] = None
     
+    def _warn_if_degenerate_term_structure(self, data: pd.DataFrame) -> None:
+        """期限结构数据健全性检查。
+
+        若 near_close / far_close 与 close 完全相同（说明期限结构表没有真实近/远月
+        数据），则期限结构类因子(spread_near_far / basis / basis_annualized)会恒为
+        常数0，导致"不同因子表现完全相同"的静默错误。此处显式告警，避免无声通过。
+        """
+        try:
+            if "near_close" not in data.columns or "far_close" not in data.columns:
+                return
+            near_eq_far = bool((data["near_close"].fillna(-1) == data["far_close"].fillna(-1)).all())
+            near_eq_close = bool((data["near_close"].fillna(-1) == data["close"].fillna(-1)).all())
+            if near_eq_far and near_eq_close:
+                logger.warning(
+                    "[期限结构告警] %s 的 near_close/far_close 与 close 完全相同："
+                    "期限结构表无真实近/远月数据，spread_near_far/basis/basis_annualized "
+                    "等期限结构因子将恒为0(不同因子表现雷同)。请先下载多合约期限结构数据。",
+                    self.task_config.symbol,
+                )
+                self.term_structure_degenerate = True
+            else:
+                self.term_structure_degenerate = False
+        except Exception as e:
+            logger.debug(f"期限结构健全性检查失败: {e}")
+
     def load_data(self) -> pd.DataFrame:
         """加载历史数据（包含多合约数据用于期限结构因子）"""
         if self.data_hub is not None:
@@ -354,6 +379,7 @@ class EvolutionCenter:
                     data['far_close'] = data.get('close', data['close'])
                 if 'days_to_expiry' not in data.columns:
                     data['days_to_expiry'] = 30
+                self._warn_if_degenerate_term_structure(data)
             except Exception as e:
                 logger.warning(f"加载多合约数据失败，回退到单合约: {e}")
                 data = self.data_hub.get_ohlcv(
@@ -367,6 +393,7 @@ class EvolutionCenter:
                 data['far_close'] = data['close']
                 data['days_to_expiry'] = 30
                 logger.info(f"从DataHub加载单合约数据: {len(data)} 条")
+                self._warn_if_degenerate_term_structure(data)
             return data
         else:
             raise RuntimeError(

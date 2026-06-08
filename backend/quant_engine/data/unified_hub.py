@@ -68,6 +68,25 @@ class DataHub:
         """获取OHLCV数据"""
         return self.timescale.get_ohlcv(symbol, start_date, end_date, frequency, **kwargs)
 
+    def get_multi_contract_ohlcv(
+        self,
+        symbol: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        frequency: str = "1H",
+        **kwargs,
+    ) -> pd.DataFrame:
+        """获取多合约(主力/近月/远月)OHLCV，供期限结构因子使用。
+
+        委托给 TimescaleHub.get_multi_contract_ohlcv。此前 DataHub 缺失该方法，
+        导致 EvolutionCenter.load_data 永远走 except 回退分支，把 near_close /
+        far_close 全部填成 close —— 期限结构类因子(spread_near_far / basis /
+        basis_annualized)因此恒为常数0，不同因子表现完全相同(静默错误)。
+        """
+        return self.timescale.get_multi_contract_ohlcv(
+            symbol, start_date, end_date, frequency
+        )
+
     def save_ohlcv(self, symbol: str, df: pd.DataFrame, frequency: str = "1H") -> int:
         """保存OHLCV数据"""
         return self.timescale.save_ohlcv(symbol, df, frequency)
