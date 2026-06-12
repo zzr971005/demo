@@ -360,6 +360,80 @@ class EvolutionCenter:
         except Exception as e:
             logger.debug(f"期限结构健全性检查失败: {e}")
 
+    # ------------------------------------------------------------------
+    # 退化因子过滤 + 绩效指纹去重（防止"不同表达式表现完全相同"的静默错误）
+    # ------------------------------------------------------------------
+    # 真实数据列名（因子表达式若不引用任何数据列，则其值为常数 → 退化因子）
+    _DATA_COLS = {
+        "open", "high", "low", "close", "volume", "open_interest", "oi",
+        "amount", "vwap", "near_close", "far_close", "days_to_expiry",
+    }
+
+    @classmethod
+    def _formula_is_constant(cls, formula: str) -> bool:
+        """判断公式是否为常数化/退化因子。
+
+        命中条件(任一)：空表达式、裸数字字面量、或不引用任何真实数据列
+        （这类因子取值恒为常数，无任何预测意义，且常与其它退化因子表现雷同）。
+        """
+        s = (formula or "").strip()
+        if not s:
+            return True
+        try:
+            float(s)  # 裸数字，如 "20"
+            return True
+        except ValueError:
+            pass
+        import re as _re
+        tokens = set(_re.findall(r"[A-Za-z_][A-Za-z_0-9]*", s))
+        return not (tokens & cls._DATA_COLS)
+
+    @staticmethod
+    def _perf_fingerprint(sharpe, total_return, total_trades, win_rate) -> tuple:
+        """绩效指纹：不同表达式若指纹完全相同，视为同一因子（静默错误防护）。"""
+        return (
+            round(float(sharpe or 0.0), 4),
+            round(float(total_return or 0.0), 4),
+            int(total_trades or 0),
+            round(float(win_rate or 0.0), 4),
+        )
+
+    def _load_existing_fingerprints(self, session) -> set:
+        """加载该品种已落库候选的绩效指纹集合。"""
+        from app.models import Candidate
+        try:
+            rows = session.query(
+                Candidate.sharpe_train,
+                Candidate.total_return,
+                Candidate.total_trades,
+                Candidate.win_rate,
+            ).filter(Candidate.symbol == self.task_config.symbol).all()
+            return {self._perf_fingerprint(*r) for r in rows}
+        except Exception as e:
+            logger.debug(f"加载绩效指纹失败: {e}")
+            return set()
+
+    def _reject_candidate(self, formula: str, ind, seen_fingerprints: set) -> str | None:
+        """返回拒绝原因(字符串)；通过则返回 None 并登记指纹。
+
+        过滤：①退化/常数化因子 ②零交易因子 ③与已有候选绩效指纹完全相同。
+        """
+        if self._formula_is_constant(formula):
+            return f"退化因子(常数化/不引用数据列): {formula!r}"
+        total_trades = ind.metrics.get("total_trades", 0)
+        if not total_trades:
+            return f"零交易因子(无有效信号): {formula!r}"
+        fp = self._perf_fingerprint(
+            ind.fitness.get("sharpe", 0.0),
+            ind.metrics.get("total_return", 0.0),
+            total_trades,
+            ind.metrics.get("win_rate", 0.0),
+        )
+        if fp in seen_fingerprints:
+            return f"绩效指纹与已有候选完全相同(疑似雷同因子) fp={fp}: {formula!r}"
+        seen_fingerprints.add(fp)
+        return None
+
     def load_data(self) -> pd.DataFrame:
         """加载历史数据（包含多合约数据用于期限结构因子）"""
         if self.data_hub is not None:
@@ -992,6 +1066,10 @@ class EvolutionCenter:
 
                 logger.info(f"数据库中已有 {len(existing_candidates)} 个候选者")
 
+                # 退化因子过滤 + 绩效指纹去重的共享状态（两条保存分支共用）
+                seen_fingerprints = self._load_existing_fingerprints(session)
+                degenerate_skipped = 0
+
                 # 2. 计算每个候选者的综合评分
                 def calc_score_for_candidate(c):
                     """为现有候选者计算综合评分"""
@@ -1057,6 +1135,13 @@ class EvolutionCenter:
                                 skipped_count += 1
                                 continue
 
+                            # 退化因子过滤 + 绩效指纹去重
+                            reject_reason = self._reject_candidate(formula, ind, seen_fingerprints)
+                            if reject_reason:
+                                logger.warning(f"[健全性过滤] {reject_reason}")
+                                degenerate_skipped += 1
+                                continue
+
                             # 生成唯一ID
                             unique_id = f"{self.task_config.task_id}_gen{ind.generation + self._generation_offset}_{uuid.uuid4().hex[:12]}"
 
@@ -1104,7 +1189,7 @@ class EvolutionCenter:
                         except Exception as e:
                             logger.error(f"保存个体 {ind.id} 失败: {e}", exc_info=True)
 
-                    logger.info(f"非重新平衡周期保存完成：新增 {saved_count} 个，跳过 {skipped_count} 个重复")
+                    logger.info(f"非重新平衡周期保存完成：新增 {saved_count} 个，跳过 {skipped_count} 个重复，健全性过滤 {degenerate_skipped} 个")
 
                     # 保存世代统计
                     self._save_generation_stats(session, sorted_inds)
@@ -1252,6 +1337,13 @@ class EvolutionCenter:
                             skipped_count += 1
                             continue
 
+                        # 退化因子过滤 + 绩效指纹去重
+                        reject_reason = self._reject_candidate(formula, ind, seen_fingerprints)
+                        if reject_reason:
+                            logger.warning(f"[健全性过滤] {reject_reason}")
+                            degenerate_skipped += 1
+                            continue
+
                         # 生成唯一ID
                         unique_id = f"{self.task_config.task_id}_gen{ind.generation + self._generation_offset}_{uuid.uuid4().hex[:12]}"
 
@@ -1299,7 +1391,7 @@ class EvolutionCenter:
                     except Exception as e:
                         logger.error(f"保存个体 {ind.id} 失败: {e}", exc_info=True)
 
-                logger.info(f"第{self.current_generation}代竞争完成：新增 {saved_count} 个，跳过 {skipped_count} 个重复，删除 {deleted_count} 个，"
+                logger.info(f"第{self.current_generation}代竞争完成：新增 {saved_count} 个，跳过 {skipped_count} 个重复，健全性过滤 {degenerate_skipped} 个，删除 {deleted_count} 个，"
                            f"当前池中共有 {len(top_candidates)} 个最佳因子")
 
                 # 10. 保存世代统计指标（用于图表展示）
