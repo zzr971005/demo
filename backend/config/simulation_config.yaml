@@ -1,0 +1,18 @@
+# 模拟交易配置
+simulation:
+  # 仓位管理
+  max_position_ratio: 0.3  # 单品种最大仓位30%
+  max_total_margin_ratio: 0.5  # 总保证金占比50%
+  
+  # 策略选择
+  strategy_selection_mode: "dynamic"  # 动态选择最优策略
+  strategy_evaluation_window: 7  # 7天评估窗口
+  
+  # 历史回放
+  replay_enabled: true
+  replay_data_source: "database"  # 从数据库读取历史K线
+  
+  # 实盘衔接
+  live_transition_period_days: 30  # 30天评估期
+  live_transition_min_sharpe: 1.5  # 最小夏普比率
+  live_transition_max_drawdown: 0.1  # 最大回撤
