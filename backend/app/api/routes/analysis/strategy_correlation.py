@@ -309,3 +309,52 @@ async def optimize_strategy_portfolio(
             "max_drawdown": max_dd,
         },
     }
+
+
+class CrossSymbolBroadcastRequest(BaseModel):
+    formula: str
+    symbols: Optional[List[str]] = None  # 默认全部规格品种
+    frequency: str = "1H"
+    combine: str = "equal"  # equal | inv_vol
+
+
+class CrossSymbolComboRequest(BaseModel):
+    legs: List[Dict[str, str]]  # [{symbol, formula, id?}]
+    frequency: str = "1H"
+    method: str = "hrp"  # hrp | ic_ir | risk_parity | sharpe | equal
+
+
+def _spec_symbols() -> List[str]:
+    from quant_engine.data.source import SYMBOL_TO_EXCHANGE
+
+    return list(SYMBOL_TO_EXCHANGE.keys())
+
+
+@router.post("/cross-symbol/broadcast")
+async def cross_symbol_broadcast(
+    request: CrossSymbolBroadcastRequest,
+) -> Dict[str, Any]:
+    """跨品种 A：一套因子广播到多个品种并分散合成。"""
+    from quant_engine.ops.cross_symbol import broadcast_factor
+
+    symbols = request.symbols or _spec_symbols()
+    return broadcast_factor(
+        formula=request.formula,
+        symbols=symbols,
+        frequency=request.frequency,
+        combine=request.combine,
+    )
+
+
+@router.post("/cross-symbol/combo")
+async def cross_symbol_combo_endpoint(
+    request: CrossSymbolComboRequest,
+) -> Dict[str, Any]:
+    """跨品种 B：不同品种不同因子按权重合成跨品种多因子策略。"""
+    from quant_engine.ops.cross_symbol import cross_symbol_combo
+
+    return cross_symbol_combo(
+        legs=request.legs,
+        frequency=request.frequency,
+        method=request.method,
+    )

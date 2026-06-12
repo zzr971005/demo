@@ -108,6 +108,37 @@ interface PortfolioResult {
   message?: string
 }
 
+interface CrossSymbolPerSymbol {
+  symbol: string
+  sharpe: number
+  calmar: number
+  max_drawdown: number
+  total_trades: number
+  total_return: number
+}
+
+interface CrossSymbolResult {
+  mode: string
+  formula?: string
+  method?: string
+  combine?: string
+  weights?: Record<string, number>
+  labels?: Record<string, string>
+  symbols_used?: string[]
+  overlap_points?: number
+  per_symbol?: CrossSymbolPerSymbol[]
+  metrics?: {
+    annual_return?: number
+    annual_volatility?: number
+    sharpe_ratio?: number
+    max_drawdown?: number
+  }
+  skipped?: { symbol?: string; id?: string; reason: string }[]
+  identical_groups?: string[][]
+  warning?: string
+  message?: string
+}
+
 
 
 export default function CorrelationAnalysis() {
@@ -141,6 +172,104 @@ export default function CorrelationAnalysis() {
   const [portfolioLoading, setPortfolioLoading] = useState(false)
 
   const [portfolio, setPortfolio] = useState<PortfolioResult | null>(null)
+
+  const [csMode, setCsMode] = useState<'A' | 'B'>('A')
+
+  const [csFormula, setCsFormula] = useState<string>('')
+
+  const [csSymbols, setCsSymbols] = useState<string>('RB,MA')
+
+  const [csCombine, setCsCombine] = useState<string>('inv_vol')
+
+  const [csMethod, setCsMethod] = useState<string>('hrp')
+
+  const [csLegsText, setCsLegsText] = useState<string>('')
+
+  const [csLoading, setCsLoading] = useState(false)
+
+  const [csResult, setCsResult] = useState<CrossSymbolResult | null>(null)
+
+
+
+  const fetchCrossSymbol = async () => {
+
+    setCsLoading(true)
+
+    try {
+
+      let url = ''
+
+      let body: Record<string, unknown> = {}
+
+      if (csMode === 'A') {
+
+        url = `${API_BASE_URL}/strategy-correlation/cross-symbol/broadcast`
+
+        const syms = csSymbols.split(',').map((s) => s.trim()).filter(Boolean)
+
+        body = { formula: csFormula, combine: csCombine }
+
+        if (syms.length > 0) body.symbols = syms
+
+      } else {
+
+        url = `${API_BASE_URL}/strategy-correlation/cross-symbol/combo`
+
+        const legs = csLegsText
+
+          .split('\n')
+
+          .map((l) => l.trim())
+
+          .filter(Boolean)
+
+          .map((l, i) => {
+
+            const idx = l.indexOf(':')
+
+            return {
+
+              id: `leg${i}`,
+
+              symbol: l.slice(0, idx).trim(),
+
+              formula: l.slice(idx + 1).trim(),
+
+            }
+
+          })
+
+        body = { method: csMethod, legs }
+
+      }
+
+      const res = await fetch(url, {
+
+        method: 'POST',
+
+        headers: { 'Content-Type': 'application/json' },
+
+        body: JSON.stringify(body),
+
+      })
+
+      if (res.ok) {
+
+        setCsResult(await res.json())
+
+      }
+
+    } catch (error) {
+
+      console.error('Failed to fetch cross-symbol strategy:', error)
+
+    } finally {
+
+      setCsLoading(false)
+
+    }
+
+  }
 
 
 
@@ -961,6 +1090,252 @@ export default function CorrelationAnalysis() {
                   </Table>
 
                 </>
+
+              )}
+
+            </CardContent>
+
+          </Card>
+
+          <Card>
+
+            <CardHeader>
+
+              <CardTitle>跨品种多因子策略</CardTitle>
+
+              <CardDescription>A：一套因子广播到多个品种并分散合成；B：不同品种不同因子按权重合成</CardDescription>
+
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+
+              <div className="flex flex-wrap items-end gap-3">
+
+                <div>
+
+                  <label className="text-sm font-medium">模式</label>
+
+                  <select
+
+                    className="block h-9 rounded-md border border-input bg-background px-3 text-sm"
+
+                    value={csMode}
+
+                    onChange={(e) => setCsMode(e.target.value as 'A' | 'B')}
+
+                  >
+
+                    <option value="A">A 广播（一套因子→多品种）</option>
+
+                    <option value="B">B 组合（多品种多因子加权）</option>
+
+                  </select>
+
+                </div>
+
+                {csMode === 'A' ? (
+
+                  <div>
+
+                    <label className="text-sm font-medium">合成方式</label>
+
+                    <select
+
+                      className="block h-9 rounded-md border border-input bg-background px-3 text-sm"
+
+                      value={csCombine}
+
+                      onChange={(e) => setCsCombine(e.target.value)}
+
+                    >
+
+                      <option value="inv_vol">逆波动加权</option>
+
+                      <option value="equal">等权重</option>
+
+                    </select>
+
+                  </div>
+
+                ) : (
+
+                  <div>
+
+                    <label className="text-sm font-medium">权重方法</label>
+
+                    <select
+
+                      className="block h-9 rounded-md border border-input bg-background px-3 text-sm"
+
+                      value={csMethod}
+
+                      onChange={(e) => setCsMethod(e.target.value)}
+
+                    >
+
+                      <option value="hrp">HRP</option>
+
+                      <option value="ic_ir">IC_IR</option>
+
+                      <option value="risk_parity">风险平价</option>
+
+                      <option value="equal">等权重</option>
+
+                    </select>
+
+                  </div>
+
+                )}
+
+                <Button onClick={fetchCrossSymbol} disabled={csLoading}>
+
+                  {csLoading ? '计算中..' : '构建跨品种策略'}
+
+                </Button>
+
+              </div>
+
+              {csMode === 'A' ? (
+
+                <div className="space-y-2">
+
+                  <Input
+
+                    placeholder="因子公式，如 (oi_trend(open_interest, 20) * obv(open, open_interest))"
+
+                    value={csFormula}
+
+                    onChange={(e) => setCsFormula(e.target.value)}
+
+                  />
+
+                  <Input
+
+                    placeholder="品种（逗号分隔），留空=全部规格品种"
+
+                    value={csSymbols}
+
+                    onChange={(e) => setCsSymbols(e.target.value)}
+
+                  />
+
+                </div>
+
+              ) : (
+
+                <textarea
+
+                  className="w-full min-h-[96px] rounded-md border border-input bg-background p-2 text-sm font-mono"
+
+                  placeholder={'每行一条腿：品种: 公式\nRB: (oi_trend(open_interest, 20) * obv(open, open_interest))\nMA: (oi_change(open_interest, 25) * obv(close, open_interest))'}
+
+                  value={csLegsText}
+
+                  onChange={(e) => setCsLegsText(e.target.value)}
+
+                />
+
+              )}
+
+              {csResult && csResult.message && (
+
+                <div className="text-sm text-muted-foreground">{csResult.message}</div>
+
+              )}
+
+              {csResult && csResult.warning && (
+
+                <div className="text-sm text-red-600">{csResult.warning}</div>
+
+              )}
+
+              {csResult && csResult.metrics && (
+
+                <div className="text-sm text-muted-foreground">
+
+                  组合：年化收益 {(csResult.metrics.annual_return ?? 0).toFixed(3)} · 年化波动 {(csResult.metrics.annual_volatility ?? 0).toFixed(3)} · 夏普 {(csResult.metrics.sharpe_ratio ?? 0).toFixed(3)} · 最大回撤 {(csResult.metrics.max_drawdown ?? 0).toFixed(3)}
+
+                </div>
+
+              )}
+
+              {csResult && csResult.weights && (
+
+                <Table>
+
+                  <TableHeader>
+
+                    <TableRow>
+
+                      <TableHead>{csMode === 'A' ? '品种' : '腿'}</TableHead>
+
+                      <TableHead>权重</TableHead>
+
+                    </TableRow>
+
+                  </TableHeader>
+
+                  <TableBody>
+
+                    {Object.entries(csResult.weights).map(([k, w]) => (
+
+                      <TableRow key={k}>
+
+                        <TableCell>{csResult.labels?.[k] || k}</TableCell>
+
+                        <TableCell>{(w * 100).toFixed(1)}%</TableCell>
+
+                      </TableRow>
+
+                    ))}
+
+                  </TableBody>
+
+                </Table>
+
+              )}
+
+              {csResult && csResult.per_symbol && csResult.per_symbol.length > 0 && (
+
+                <Table>
+
+                  <TableHeader>
+
+                    <TableRow>
+
+                      <TableHead>品种</TableHead>
+
+                      <TableHead>夏普</TableHead>
+
+                      <TableHead>Calmar</TableHead>
+
+                      <TableHead>交易数</TableHead>
+
+                    </TableRow>
+
+                  </TableHeader>
+
+                  <TableBody>
+
+                    {csResult.per_symbol.map((p) => (
+
+                      <TableRow key={p.symbol}>
+
+                        <TableCell>{p.symbol}</TableCell>
+
+                        <TableCell>{p.sharpe.toFixed(3)}</TableCell>
+
+                        <TableCell>{p.calmar.toFixed(3)}</TableCell>
+
+                        <TableCell>{p.total_trades}</TableCell>
+
+                      </TableRow>
+
+                    ))}
+
+                  </TableBody>
+
+                </Table>
 
               )}
 
