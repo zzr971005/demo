@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.db import get_session
+from app.db import get_db
 from quant_engine.ops.factor_classifier import FactorClassifier, FactorCategory
 
 router = APIRouter()
@@ -27,7 +27,7 @@ class BatchClassificationRequest(BaseModel):
 @router.post("/classify")
 async def classify_factor(
     request: FactorClassificationRequest,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Classify a factor by type (universal/symbol-specific)"""
     # TODO: Initialize classifier with generalization engine
@@ -52,7 +52,7 @@ async def classify_factor(
 @router.post("/batch-classify")
 async def batch_classify_factors(
     request: BatchClassificationRequest,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Classify multiple factors"""
     # TODO: Initialize classifier with generalization engine
@@ -79,7 +79,7 @@ async def batch_classify_factors(
 @router.get("/by-category/{category}")
 async def get_factors_by_category(
     category: str,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get all factors of a specific category"""
     # TODO: Initialize classifier
@@ -100,7 +100,7 @@ async def get_factors_by_category(
 
 
 @router.get("/summary")
-async def get_classification_summary(db: Session = Depends(get_session)):
+async def get_classification_summary(db: Session = Depends(get_db)):
     """Get summary of factor classifications"""
     # TODO: Initialize classifier
     classifier = FactorClassifier(generalization_engine=None)

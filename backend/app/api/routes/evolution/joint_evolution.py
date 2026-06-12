@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.db import get_session
+from app.db import get_db
 from quant_engine.ops.joint_evolution_center import JointEvolutionCenter, JointEvolutionConfig
 
 router = APIRouter()
@@ -32,7 +32,7 @@ class HybridEvolutionRequest(BaseModel):
 @router.post("/joint-start")
 async def start_joint_evolution(
     request: JointEvolutionRequest,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Start joint evolution for multiple symbols"""
     config = JointEvolutionConfig(
@@ -58,7 +58,7 @@ async def start_joint_evolution(
 @router.post("/hybrid-start")
 async def start_hybrid_evolution(
     request: HybridEvolutionRequest,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Start hybrid evolution (universal + symbol-specific)"""
     config = JointEvolutionConfig(
@@ -82,7 +82,7 @@ async def start_hybrid_evolution(
 @router.get("/joint-status/{task_id}")
 async def get_joint_evolution_status(
     task_id: str,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Get joint evolution task status"""
     # TODO: Implement status retrieval

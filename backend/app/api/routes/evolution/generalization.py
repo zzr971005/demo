@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.db import get_session
+from app.db import get_db
 from quant_engine.ops.generalization_test import GeneralizationTestEngine
 
 router = APIRouter()
@@ -29,7 +29,7 @@ class BatchGeneralizationTestRequest(BaseModel):
 @router.post("/test")
 async def test_factor_generalization(
     request: GeneralizationTestRequest,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Test factor generalization across symbols"""
     # TODO: Initialize engine with data hub
@@ -60,7 +60,7 @@ async def test_factor_generalization(
 @router.post("/batch-test")
 async def batch_test_generalization(
     request: BatchGeneralizationTestRequest,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_db)
 ):
     """Test multiple factors for generalization"""
     # TODO: Initialize engine with data hub

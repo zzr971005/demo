@@ -67,6 +67,21 @@ def get_session() -> Generator[Session, None, None]:
         session.close()
 
 
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency that yields a database session.
+
+    Unlike ``get_session`` (a ``@contextmanager``), this is a plain generator
+    suitable for ``Depends(...)`` so FastAPI injects the ``Session`` itself
+    rather than the context-manager object.
+    """
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    finally:
+        session.close()
+
+
 # ---------------------------------------------------------------------------
 # Database initialization
 # ---------------------------------------------------------------------------

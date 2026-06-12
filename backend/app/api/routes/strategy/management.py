@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from app.db import get_session
+from app.db import get_session, get_db
 from quant_engine.ops.strategy_selector import StrategySelector
 from quant_engine.ops.strategy_rotation import StrategyRotator, get_current_strategies, get_top_factors
-from quant_engine.core.models.evolution import FactorDecayHistory, StrategyRotationHistory
+from quant_engine.core.models.evolution import FactorDecayHistory, StrategyRotationHistory, get_sqlite_db
 import yaml
 
 router = APIRouter(prefix="/api/strategy-management", tags=["strategy-management"])
@@ -120,7 +120,7 @@ def get_factor_pool_config():
 async def get_factor_pool(
     symbol: str,
     limit: int = 50,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ) -> List[FactorInfo]:
     """
     获取因子池
@@ -144,7 +144,7 @@ async def get_factor_pool(
 @router.post("/strategies/select")
 async def select_strategies(
     request: StrategySelectionRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ) -> List[FactorInfo]:
     """
     选择策略
@@ -179,7 +179,7 @@ async def select_strategies(
 @router.post("/strategies/rotate")
 async def rotate_strategies(
     request: StrategyRotationRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ) -> dict:
     """
     手动触发策略轮换
@@ -219,7 +219,7 @@ async def rotate_strategies(
 async def get_rotation_history(
     symbol: str,
     limit: int = 50,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_sqlite_db)
 ) -> List[RotationHistoryItem]:
     """
     获取轮换历史
@@ -244,7 +244,7 @@ async def get_rotation_history(
 async def get_decay_history(
     factor_id: str,
     limit: int = 100,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_sqlite_db)
 ) -> List[DecayHistoryItem]:
     """
     获取因子衰减历史
@@ -268,7 +268,7 @@ async def get_decay_history(
 @router.get("/strategies/current/{symbol}")
 async def get_current_strategies_api(
     symbol: str,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ) -> List[FactorInfo]:
     """
     获取当前策略

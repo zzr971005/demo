@@ -67,6 +67,20 @@ def get_db_session() -> Generator[Session, None, None]:
         session.close()
 
 
+def get_sqlite_db() -> Generator[Session, None, None]:
+    """FastAPI dependency yielding a SQLite session for evolution-runtime models.
+
+    Plain generator (not a ``@contextmanager``) so it can be used directly with
+    ``Depends(...)``.
+    """
+    session = SQLiteSession()
+    try:
+        yield session
+        session.commit()
+    finally:
+        session.close()
+
+
 # ---------------------------------------------------------------------------
 # 进化任务
 # ---------------------------------------------------------------------------
