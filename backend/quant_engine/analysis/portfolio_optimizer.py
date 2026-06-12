@@ -209,6 +209,68 @@ class PortfolioOptimizer:
             logger.warning("夏普比率优化失败，使用等权重")
             return initial_weights
     
+    def optimize_hrp(self, returns_matrix: np.ndarray) -> np.ndarray:
+        """层次风险平价（HRP, López de Prado 2016）。
+
+        步骤：相关→距离 d=sqrt((1-corr)/2) → 层次聚类 → 拟对角化 →
+        递归二分按逆方差分配权重。对相关结构稳健，无需矩阵求逆。
+        """
+        n_assets = returns_matrix.shape[1]
+        if n_assets == 1:
+            return np.ones(1)
+
+        cov = np.cov(returns_matrix.T)
+        std = np.sqrt(np.diag(cov))
+        with np.errstate(divide="ignore", invalid="ignore"):
+            corr = cov / np.outer(std, std)
+        corr = np.nan_to_num(corr, nan=0.0)
+        np.fill_diagonal(corr, 1.0)
+
+        # 1) 距离矩阵 + 层次聚类
+        try:
+            from scipy.cluster.hierarchy import leaves_list, linkage
+            from scipy.spatial.distance import squareform
+
+            dist = np.sqrt(np.clip((1.0 - corr) / 2.0, 0.0, 1.0))
+            np.fill_diagonal(dist, 0.0)
+            condensed = squareform(dist, checks=False)
+            link = linkage(condensed, method="single")
+            sort_ix = list(leaves_list(link))
+        except Exception as e:  # noqa: BLE001
+            logger.warning("HRP 聚类失败，退回逆方差: %s", e)
+            sort_ix = list(np.argsort(std))
+
+        # 2) 递归二分
+        def _ivp(sub_cov: np.ndarray) -> np.ndarray:
+            ivp = 1.0 / np.diag(sub_cov)
+            return ivp / ivp.sum()
+
+        def _cluster_var(items: List[int]) -> float:
+            sub = cov[np.ix_(items, items)]
+            w = _ivp(sub)
+            return float(w @ sub @ w)
+
+        weights = np.ones(n_assets)
+        clusters = [sort_ix]
+        while clusters:
+            new_clusters: List[List[int]] = []
+            for cl in clusters:
+                if len(cl) <= 1:
+                    continue
+                half = len(cl) // 2
+                left, right = cl[:half], cl[half:]
+                var_l, var_r = _cluster_var(left), _cluster_var(right)
+                alpha = 1.0 - var_l / (var_l + var_r + 1e-12)
+                for i in left:
+                    weights[i] *= alpha
+                for i in right:
+                    weights[i] *= 1.0 - alpha
+                new_clusters.extend([left, right])
+            clusters = new_clusters
+
+        total = weights.sum()
+        return weights / total if total > 0 else np.ones(n_assets) / n_assets
+
     def optimize_portfolio(
         self,
         strategies: List[Dict[str, Any]],
@@ -246,6 +308,8 @@ class PortfolioOptimizer:
             weights = self.optimize_markowitz(returns_matrix, target_return)
         elif self.optimization_method == "sharpe":
             weights = self.optimize_sharpe_ratio(returns_matrix)
+        elif self.optimization_method == "hrp":
+            weights = self.optimize_hrp(returns_matrix)
         else:
             weights = np.ones(n) / n
         
@@ -304,3 +368,24 @@ class PortfolioOptimizer:
             "max_drawdown": max_drawdown,
             "risk_contributions": dict(zip(weights.keys(), risk_contributions))
         }
+
+
+def ic_ir_weights(factors: List[Dict[str, Any]], key: str = "ic_ir") -> Dict[str, float]:
+    """IC_IR 加权合成多因子最优组合。
+
+    权重 ∝ max(IC_IR, 0)，归一化求和为 1（López de Prado / Grinold-Kahn 的
+    信息比率加权思想）。全部非正时退回等权。
+
+    Parameters
+    ----------
+    factors : list of dict
+        每项含 ``id`` 与 IC_IR 字段（默认键 ``ic_ir``）。
+    """
+    if not factors:
+        return {}
+    raw = np.array([max(float(f.get(key) or 0.0), 0.0) for f in factors])
+    total = raw.sum()
+    if total <= 0:
+        n = len(factors)
+        return {f["id"]: 1.0 / n for f in factors}
+    return {f["id"]: float(w / total) for f, w in zip(factors, raw)}

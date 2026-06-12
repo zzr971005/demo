@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Candidate, CandidateStatus
+import numpy as np
+import pandas as pd
+
+from quant_engine.analysis.portfolio_optimizer import PortfolioOptimizer, ic_ir_weights
 from quant_engine.analysis.strategy_correlation import StrategyCorrelationService
 from quant_engine.ops.strategy_selector import select_top2_low_correlation
 from quant_engine.validation.pbo_dsr import dsr as deflated_sharpe
@@ -66,6 +70,7 @@ def _collect_strategies(
             "symbol": r.symbol,
             "formula": r.formula,
             "label": f"{r.symbol}:{(r.formula or '')[:24]}",
+            "ic_ir": r.ic_ir,
         }
         for r in rows
     ]
@@ -216,3 +221,91 @@ async def select_top2_per_symbol(
         session.commit()
 
     return {"persisted": request.persist, "results": results}
+
+
+class PortfolioRequest(BaseModel):
+    strategies: Optional[List[Dict[str, Any]]] = None
+    symbols: Optional[List[str]] = None
+    scope: str = "selected"
+    method: str = "hrp"  # hrp | risk_parity | sharpe | markowitz | ic_ir | equal
+    frequency: str = "1H"
+    limit: int = 50
+
+
+@router.post("/portfolio")
+async def optimize_strategy_portfolio(
+    request: PortfolioRequest,
+    session: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """对已选/部署的多因子策略做组合权重分配（HRP / IC_IR / 风险平价 等）。
+
+    全部基于真实行情重建的收益序列，按时间戳对齐后计算。
+    """
+    strategies = _collect_strategies(
+        session,
+        StrategyCorrelationRequest(
+            strategies=request.strategies,
+            symbols=request.symbols,
+            scope=request.scope,
+            limit=request.limit,
+        ),
+    )
+    service = StrategyCorrelationService(frequency=request.frequency)
+
+    series_map: Dict[str, pd.Series] = {}
+    meta: Dict[str, Dict[str, Any]] = {}
+    for s in strategies:
+        sid = str(s.get("id"))
+        ser = service.compute_return_series(s.get("formula"), s.get("symbol"))
+        if ser is None or ser.dropna().shape[0] < 30:
+            continue
+        series_map[sid] = ser
+        meta[sid] = s
+
+    ids = list(series_map.keys())
+    if len(ids) < 2:
+        return {
+            "method": request.method,
+            "weights": {i: 1.0 for i in ids},
+            "labels": {i: meta[i].get("label", i) for i in ids},
+            "metrics": {},
+            "message": "可用策略不足 2 个，无法做组合优化",
+        }
+
+    aligned = pd.DataFrame(series_map).dropna()
+    returns_matrix = aligned[ids].to_numpy()
+
+    if request.method == "ic_ir":
+        factors = [{"id": i, "ic_ir": meta[i].get("ic_ir")} for i in ids]
+        weights = ic_ir_weights(factors)
+    elif request.method == "equal":
+        weights = {i: 1.0 / len(ids) for i in ids}
+    else:
+        optimizer = PortfolioOptimizer({"optimization_method": request.method})
+        weights = optimizer.optimize_portfolio(
+            [{"id": i} for i in ids], returns_matrix=returns_matrix
+        )
+
+    # 组合绩效（与权重同序）
+    w_vec = np.array([weights[i] for i in ids])
+    port_ret = returns_matrix @ w_vec
+    ann_ret = float(np.mean(port_ret) * 252)
+    ann_vol = float(np.std(port_ret) * np.sqrt(252))
+    sharpe = ann_ret / ann_vol if ann_vol > 0 else 0.0
+    cum = np.cumprod(1 + port_ret)
+    running_max = np.maximum.accumulate(cum)
+    max_dd = float(np.min((cum - running_max) / running_max)) if cum.size else 0.0
+
+    return {
+        "method": request.method,
+        "strategy_ids": ids,
+        "labels": {i: meta[i].get("label", i) for i in ids},
+        "weights": {i: float(weights[i]) for i in ids},
+        "overlap_points": int(aligned.shape[0]),
+        "metrics": {
+            "annual_return": ann_ret,
+            "annual_volatility": ann_vol,
+            "sharpe_ratio": float(sharpe),
+            "max_drawdown": max_dd,
+        },
+    }

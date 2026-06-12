@@ -93,6 +93,21 @@ interface Top2SymbolResult {
   warnings: string[]
 }
 
+interface PortfolioResult {
+  method: string
+  strategy_ids?: string[]
+  labels: Record<string, string>
+  weights: Record<string, number>
+  overlap_points?: number
+  metrics: {
+    annual_return?: number
+    annual_volatility?: number
+    sharpe_ratio?: number
+    max_drawdown?: number
+  }
+  message?: string
+}
+
 
 
 export default function CorrelationAnalysis() {
@@ -120,6 +135,54 @@ export default function CorrelationAnalysis() {
   const [top2Loading, setTop2Loading] = useState(false)
 
   const [top2Result, setTop2Result] = useState<Top2SymbolResult[] | null>(null)
+
+  const [portfolioMethod, setPortfolioMethod] = useState<string>('hrp')
+
+  const [portfolioLoading, setPortfolioLoading] = useState(false)
+
+  const [portfolio, setPortfolio] = useState<PortfolioResult | null>(null)
+
+
+
+  const fetchPortfolio = async () => {
+
+    setPortfolioLoading(true)
+
+    try {
+
+      const syms = stratSymbols.split(',').map((s) => s.trim()).filter(Boolean)
+
+      const body: Record<string, unknown> = { scope: stratScope, method: portfolioMethod }
+
+      if (syms.length > 0) body.symbols = syms
+
+      const res = await fetch(`${API_BASE_URL}/strategy-correlation/portfolio`, {
+
+        method: 'POST',
+
+        headers: { 'Content-Type': 'application/json' },
+
+        body: JSON.stringify(body),
+
+      })
+
+      if (res.ok) {
+
+        setPortfolio(await res.json())
+
+      }
+
+    } catch (error) {
+
+      console.error('Failed to fetch portfolio weights:', error)
+
+    } finally {
+
+      setPortfolioLoading(false)
+
+    }
+
+  }
 
 
 
@@ -798,6 +861,112 @@ export default function CorrelationAnalysis() {
             </Card>
 
           )}
+
+          <Card>
+
+            <CardHeader>
+
+              <CardTitle>组合权重优化</CardTitle>
+
+              <CardDescription>对当前范围内策略按真实收益序列做组合权重分配（HRP / IC_IR / 风险平价）</CardDescription>
+
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+
+              <div className="flex flex-wrap items-end gap-3">
+
+                <div>
+
+                  <label className="text-sm font-medium">方法</label>
+
+                  <select
+
+                    className="block h-9 rounded-md border border-input bg-background px-3 text-sm"
+
+                    value={portfolioMethod}
+
+                    onChange={(e) => setPortfolioMethod(e.target.value)}
+
+                  >
+
+                    <option value="hrp">HRP 层次风险平价</option>
+
+                    <option value="ic_ir">IC_IR 加权</option>
+
+                    <option value="risk_parity">风险平价</option>
+
+                    <option value="sharpe">最大夏普</option>
+
+                    <option value="equal">等权重</option>
+
+                  </select>
+
+                </div>
+
+                <Button onClick={fetchPortfolio} disabled={portfolioLoading}>
+
+                  {portfolioLoading ? '计算中..' : '计算组合权重'}
+
+                </Button>
+
+              </div>
+
+              {portfolio && portfolio.message && (
+
+                <div className="text-sm text-muted-foreground">{portfolio.message}</div>
+
+              )}
+
+              {portfolio && !portfolio.message && (
+
+                <>
+
+                  <div className="text-sm text-muted-foreground">
+
+                    年化收益 {(portfolio.metrics.annual_return ?? 0).toFixed(3)} · 年化波动 {(portfolio.metrics.annual_volatility ?? 0).toFixed(3)} · 夏普 {(portfolio.metrics.sharpe_ratio ?? 0).toFixed(3)} · 最大回撤 {(portfolio.metrics.max_drawdown ?? 0).toFixed(3)}
+
+                  </div>
+
+                  <Table>
+
+                    <TableHeader>
+
+                      <TableRow>
+
+                        <TableHead>策略</TableHead>
+
+                        <TableHead>权重</TableHead>
+
+                      </TableRow>
+
+                    </TableHeader>
+
+                    <TableBody>
+
+                      {Object.entries(portfolio.weights).map(([id, w]) => (
+
+                        <TableRow key={id}>
+
+                          <TableCell>{portfolio.labels[id] || id}</TableCell>
+
+                          <TableCell>{(w * 100).toFixed(1)}%</TableCell>
+
+                        </TableRow>
+
+                      ))}
+
+                    </TableBody>
+
+                  </Table>
+
+                </>
+
+              )}
+
+            </CardContent>
+
+          </Card>
 
           {stratMatrix && stratMatrix.strategy_ids.length >= 2 && (
 
