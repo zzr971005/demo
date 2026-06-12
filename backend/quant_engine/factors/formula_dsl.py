@@ -397,7 +397,7 @@ def _compile_node(node: ExprNode) -> Callable[[Dict[str, np.ndarray]], np.ndarra
         if func is None:
             raise RuntimeError(f"函数 {node.name} 未绑定实现")
 
-        def _call(env: Dict[str, np.ndarray], func=func, arg_fns=arg_fns) -> np.ndarray:
+        def _call(env: Dict[str, np.ndarray], func=func, arg_fns=arg_fns, params=meta.params) -> np.ndarray:
             args = [fn(env) for fn in arg_fns]
             # 将 numpy scalar / 0-d array 参数转为 Python 原生类型，避免 numba 类型推断问题
             def _to_py(v):
@@ -407,7 +407,20 @@ def _compile_node(node: ExprNode) -> Callable[[Dict[str, np.ndarray]], np.ndarra
                     return v.item()
                 return v
             args = [_to_py(a) for a in args]
-            return func(*args)
+            # 按注册签名将标量参数强制为登记类型（如 int 窗口）。
+            # DSL 常量恒被编译为 float，若不按签名强转，window=15.0 会让
+            # numba 整型索引报错、因子静默崩溃（属"看似在跑其实挂掉"一类）。
+            coerced = []
+            for i, a in enumerate(args):
+                if i < len(params) and not isinstance(a, np.ndarray):
+                    ptype = params[i][1]
+                    if ptype in (int, float):
+                        try:
+                            a = ptype(a)
+                        except (TypeError, ValueError):
+                            pass
+                coerced.append(a)
+            return func(*coerced)
 
         return _call
 

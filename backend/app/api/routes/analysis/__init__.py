@@ -9,6 +9,7 @@ from app.api.routes.analysis import (
     cross_market_trading,
     microstructure,
     portfolio,
+    strategy_correlation,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "cross_market_trading",
     "microstructure",
     "portfolio",
+    "strategy_correlation",
 ]

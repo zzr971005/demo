@@ -273,6 +273,7 @@ def create_application() -> FastAPI:
     # Analysis routes
     app.include_router(analysis.baseline.router, prefix="/api")
     app.include_router(analysis.correlation.router)
+    app.include_router(analysis.strategy_correlation.router)
     app.include_router(analysis.microstructure.router)
     app.include_router(analysis.portfolio.router)
     app.include_router(analysis.backtest_live_comparison.router)  # Has prefix /api/backtest-live-comparison
