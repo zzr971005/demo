@@ -393,7 +393,7 @@ async def get_strategy_status(symbol: str):
             # 获取候选策略数量
             candidate_count = session.query(Candidate)\
                 .filter(Candidate.symbol == symbol)\
-                .filter(Candidate.status == CandidateStatus.CANDIDATE)\
+                .filter(Candidate.status == CandidateStatus.DEPLOYABLE)\
                 .count()
             
             # 计算性能分数

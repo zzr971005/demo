@@ -14,6 +14,36 @@ from app.models import LiveTransitionCandidate
 router = APIRouter(prefix="/api/live-transition", tags=["live-transition"])
 
 
+def _evaluation_period_days(c: LiveTransitionCandidate) -> Optional[int]:
+    if c.paper_test_start and c.paper_test_end:
+        return (c.paper_test_end - c.paper_test_start).days
+    return None
+
+
+def _candidate_to_dict(c: LiveTransitionCandidate) -> Dict[str, Any]:
+    """Serialize a candidate using the real model columns."""
+    is_live = c.live_start is not None
+    return {
+        "strategy_id": c.candidate_id,
+        "symbol": c.symbol,
+        "transition_status": c.transition_status,
+        "transition_score": c.transition_score,
+        "evaluation_period_days": _evaluation_period_days(c),
+        "current_metrics": {
+            "sharpe": c.live_sharpe if is_live else c.paper_sharpe,
+            "return": c.live_return if is_live else c.paper_return,
+            "drawdown": c.live_max_dd if is_live else c.paper_max_dd,
+        },
+        "paper_metrics": {
+            "sharpe": c.paper_sharpe,
+            "return": c.paper_return,
+            "drawdown": c.paper_max_dd,
+        },
+        "is_ready": c.transition_status in ("approved", "completed"),
+        "promoted_at": c.live_start.isoformat() if c.live_start else None,
+    }
+
+
 class TransitionRequest(BaseModel):
     strategy_id: str
     target_mode: str  # simulation -> live
@@ -28,19 +58,7 @@ async def get_transition_candidates() -> Dict[str, Any]:
         candidates = result.scalars().all()
         
         return {
-            "candidates": [
-                {
-                    "strategy_id": c.strategy_id,
-                    "evaluation_period_days": c.evaluation_period_days,
-                    "min_sharpe": c.min_sharpe,
-                    "max_drawdown": c.max_drawdown,
-                    "current_sharpe": c.current_sharpe,
-                    "current_drawdown": c.current_drawdown,
-                    "is_ready": c.is_ready,
-                    "promoted_at": c.promoted_at.isoformat() if c.promoted_at else None,
-                }
-                for c in candidates
-            ]
+            "candidates": [_candidate_to_dict(c) for c in candidates]
         }
 
 
@@ -51,21 +69,21 @@ async def promote_to_live(
 ) -> Dict[str, Any]:
     """将策略提升到实盘"""
     with get_session() as session:
-        query = select(LiveTransitionCandidate).where(LiveTransitionCandidate.strategy_id == strategy_id)
+        query = select(LiveTransitionCandidate).where(LiveTransitionCandidate.candidate_id == strategy_id)
         result = session.execute(query)
         candidate = result.scalar_one_or_none()
         
         if not candidate:
             raise HTTPException(status_code=404, detail=f"Strategy {strategy_id} not found in candidates")
         
-        candidate.is_ready = True
-        candidate.promoted_at = datetime.utcnow()
+        candidate.transition_status = "completed"
+        candidate.live_start = datetime.utcnow()
         session.commit()
         
         return {
             "strategy_id": strategy_id,
             "status": "PROMOTED",
-            "promoted_at": datetime.utcnow().isoformat()
+            "promoted_at": candidate.live_start.isoformat()
         }
 
 
@@ -73,21 +91,11 @@ async def promote_to_live(
 async def get_transition_evaluation(strategy_id: str) -> Dict[str, Any]:
     """获取过渡评估"""
     with get_session() as session:
-        query = select(LiveTransitionCandidate).where(LiveTransitionCandidate.strategy_id == strategy_id)
+        query = select(LiveTransitionCandidate).where(LiveTransitionCandidate.candidate_id == strategy_id)
         result = session.execute(query)
         candidate = result.scalar_one_or_none()
         
         if candidate:
-            return {
-                "strategy_id": strategy_id,
-                "evaluation_period_days": candidate.evaluation_period_days,
-                "min_sharpe": candidate.min_sharpe,
-                "max_drawdown": candidate.max_drawdown,
-                "current_metrics": {
-                    "sharpe": candidate.current_sharpe,
-                    "drawdown": candidate.current_drawdown,
-                },
-                "is_ready": candidate.is_ready
-            }
+            return _candidate_to_dict(candidate)
         else:
             raise HTTPException(status_code=404, detail=f"Strategy {strategy_id} not found in candidates")
