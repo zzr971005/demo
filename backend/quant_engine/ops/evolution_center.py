@@ -1023,6 +1023,29 @@ class EvolutionCenter:
             # 过滤掉无效个体（fitness为-9999的）
             valid_individuals = [ind for ind in best_individuals if ind.fitness.get("penalized", 0) > 0]
             logger.info(f"过滤前: {len(best_individuals)} 个, 过滤后: {len(valid_individuals)} 个有效个体")
+
+            # 方法1 门槛分级：过线个体不足时，按评分兜底保留 top-K「probation 半成品」，
+            # 避免薄品种(如 SA/MA)整代被硬门槛清空、无因子可落库/可繁殖。
+            # probation 个体绩效仍低，过不了 top2/转实盘的 DSR>0 等硬门控，仅供继续进化。
+            min_keep = config.get("min_keep_top_k", 5)
+            if len(valid_individuals) < min_keep:
+                fallback = sorted(
+                    (ind for ind in best_individuals if ind.fitness.get("penalized", -9999) > -9000),
+                    key=lambda x: x.fitness.get("penalized", -9999),
+                    reverse=True,
+                )
+                kept_ids = {id(ind) for ind in valid_individuals}
+                probation = [ind for ind in fallback if id(ind) not in kept_ids][
+                    : max(0, min_keep - len(valid_individuals))
+                ]
+                if probation:
+                    for ind in probation:
+                        ind.fitness["probation"] = True
+                    logger.warning(
+                        f"[门槛分级] 过线个体不足({len(valid_individuals)}<{min_keep})，"
+                        f"兜底保留 {len(probation)} 个 probation 半成品（绩效偏低，仅供继续进化）"
+                    )
+                    valid_individuals = valid_individuals + probation
             best_individuals = valid_individuals
 
             # 表达式去重，避免重复因子进入候选池

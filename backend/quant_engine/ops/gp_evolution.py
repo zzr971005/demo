@@ -309,6 +309,16 @@ class PopulationManager:
         ]
         
         if len(valid_individuals) < 2:
+            # 方法1 门槛分级：过线父代不足时，不退化成纯随机，而是在「非硬性无效(-9999)」
+            # 的个体里按评分保留 top-2 当父代，让薄品种也能朝"最不差"方向继续进化。
+            ranked = sorted(
+                (ind for ind in self.population if ind.fitness.get("penalized", -9999) > -9000),
+                key=lambda x: x.fitness.get("penalized", -9999),
+                reverse=True,
+            )
+            if len(ranked) >= 2:
+                logger.warning("有效个体不足，按评分保留top2作为父代（门槛分级）")
+                return ranked[:2]
             logger.warning("有效个体不足，返回随机选择")
             return random.sample(self.population, min(2, len(self.population)))
         
