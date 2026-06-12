@@ -738,7 +738,9 @@ class FitnessEvaluator:
 
         return validate_node(individual.root)
 
-    def _normalize_factor(self, factor: np.ndarray) -> np.ndarray:
+    def _normalize_factor(
+        self, factor: np.ndarray, fit: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         """标准化因子值（z-score）"""
         # 去除NaN和Inf
         # fit 为拟合统计量所用的样本（默认整段；传入训练集即可防泄漏）。
@@ -760,9 +762,14 @@ class FitnessEvaluator:
     def _normalize_factor_quantile(
         self, factor: np.ndarray, fit: Optional[np.ndarray] = None
     ) -> np.ndarray:
-        """使用分位数归一化标准化因子值"""
+        """使用分位数归一化标准化因子值
+
+        防泄漏：归一化统计量（中位数/IQR）仅用 ``fit`` 样本拟合（默认整段，
+        调用方传入训练集前 train_ratio 段即可消除样本内归一化泄漏），再应用到整段。
+        """
         # 去除NaN和Inf
-        clean = factor[np.isfinite(factor)]
+        _src = fit if fit is not None else factor
+        clean = _src[np.isfinite(_src)]
         if len(clean) == 0:
             return factor
 
