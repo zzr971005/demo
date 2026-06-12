@@ -10,6 +10,8 @@ import { Badge } from '../../components/ui/badge'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
+
 import { API_BASE_URL } from '../../config'
 
 
@@ -52,6 +54,28 @@ interface DiversificationSuggestion {
 
 
 
+interface StrategyPair {
+  a: string
+  b: string
+  label_a: string
+  label_b: string
+  correlation?: number
+}
+
+interface StrategyCorrelation {
+  strategy_ids: string[]
+  labels: string[]
+  matrix: number[][]
+  avg_abs_corr: number
+  high_corr_pairs: StrategyPair[]
+  identical_pairs: StrategyPair[]
+  overlap_points: number
+  skipped: { id: string; reason: string }[]
+  message?: string
+}
+
+
+
 export default function CorrelationAnalysis() {
 
   const [matrix, setMatrix] = useState<CorrelationMatrix | null>(null)
@@ -63,6 +87,58 @@ export default function CorrelationAnalysis() {
   const [loading, setLoading] = useState(false)
 
   const [symbols, setSymbols] = useState<string[]>(['RB', 'MA', 'CU', 'AL'])
+
+  const [stratMatrix, setStratMatrix] = useState<StrategyCorrelation | null>(null)
+
+  const [stratLoading, setStratLoading] = useState(false)
+
+  const [stratScope, setStratScope] = useState<string>('all')
+
+  const [stratSymbols, setStratSymbols] = useState<string>('')
+
+  const [stratThreshold, setStratThreshold] = useState<number>(0.5)
+
+
+
+  const fetchStrategyMatrix = async () => {
+
+    setStratLoading(true)
+
+    try {
+
+      const body: Record<string, unknown> = { scope: stratScope, threshold: stratThreshold, limit: 50 }
+
+      const syms = stratSymbols.split(',').map((s) => s.trim()).filter(Boolean)
+
+      if (syms.length > 0) body.symbols = syms
+
+      const res = await fetch(`${API_BASE_URL}/strategy-correlation/matrix`, {
+
+        method: 'POST',
+
+        headers: { 'Content-Type': 'application/json' },
+
+        body: JSON.stringify(body),
+
+      })
+
+      if (res.ok) {
+
+        setStratMatrix(await res.json())
+
+      }
+
+    } catch (error) {
+
+      console.error('Failed to fetch strategy correlation matrix:', error)
+
+    } finally {
+
+      setStratLoading(false)
+
+    }
+
+  }
 
 
 
@@ -170,7 +246,17 @@ export default function CorrelationAnalysis() {
 
       <h1 className="text-3xl font-bold">相关性分析</h1>
 
+      <Tabs defaultValue="symbol" className="space-y-6">
 
+        <TabsList>
+
+          <TabsTrigger value="symbol">品种相关度</TabsTrigger>
+
+          <TabsTrigger value="strategy">策略相关度</TabsTrigger>
+
+        </TabsList>
+
+        <TabsContent value="symbol" className="space-y-6">
 
       <Card>
 
@@ -451,6 +537,290 @@ export default function CorrelationAnalysis() {
         </>
 
       )}
+
+        </TabsContent>
+
+        <TabsContent value="strategy" className="space-y-6">
+
+          <Card>
+
+            <CardHeader>
+
+              <CardTitle>策略相关度矩阵</CardTitle>
+
+              <CardDescription>基于最新多因子策略在真实行情上重建的收益序列实时构建（策略×策略）</CardDescription>
+
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+
+              <div className="flex flex-wrap items-end gap-3">
+
+                <div>
+
+                  <label className="text-sm font-medium">策略范围</label>
+
+                  <select
+
+                    className="block h-9 rounded-md border border-input bg-background px-3 text-sm"
+
+                    value={stratScope}
+
+                    onChange={(e) => setStratScope(e.target.value)}
+
+                  >
+
+                    <option value="all">全部候选</option>
+
+                    <option value="selected">已选策略</option>
+
+                    <option value="deployed">已部署</option>
+
+                  </select>
+
+                </div>
+
+                <div>
+
+                  <label className="text-sm font-medium">品种过滤（可选，逗号分隔）</label>
+
+                  <Input placeholder="RB,MA" value={stratSymbols} onChange={(e) => setStratSymbols(e.target.value)} />
+
+                </div>
+
+                <div>
+
+                  <label className="text-sm font-medium">高相关阈值</label>
+
+                  <Input
+
+                    type="number"
+
+                    step="0.05"
+
+                    value={stratThreshold}
+
+                    onChange={(e) => setStratThreshold(parseFloat(e.target.value) || 0.5)}
+
+                  />
+
+                </div>
+
+                <Button onClick={fetchStrategyMatrix} disabled={stratLoading}>
+
+                  {stratLoading ? '计算中..' : '构建策略相关度'}
+
+                </Button>
+
+              </div>
+
+            </CardContent>
+
+          </Card>
+
+          {stratMatrix && stratMatrix.strategy_ids.length >= 2 && (
+
+            <>
+
+              <Card>
+
+                <CardHeader>
+
+                  <CardTitle>策略相关度矩阵</CardTitle>
+
+                  <CardDescription>
+
+                    重叠样本点 {stratMatrix.overlap_points} · 平均|相关性| {stratMatrix.avg_abs_corr.toFixed(3)}
+
+                  </CardDescription>
+
+                </CardHeader>
+
+                <CardContent>
+
+                  <div className="overflow-x-auto">
+
+                    <table className="w-full text-xs">
+
+                      <thead>
+
+                        <tr>
+
+                          <th className="p-2"></th>
+
+                          {stratMatrix.strategy_ids.map((_, i) => (
+
+                            <th key={i} className="p-2">S{i + 1}</th>
+
+                          ))}
+
+                        </tr>
+
+                      </thead>
+
+                      <tbody>
+
+                        {stratMatrix.matrix.map((row, i) => (
+
+                          <tr key={i}>
+
+                            <td className="p-2 font-medium whitespace-nowrap">S{i + 1} · {stratMatrix.labels[i]}</td>
+
+                            {row.map((val, j) => (
+
+                              <td
+
+                                key={j}
+
+                                className="p-2 text-center"
+
+                                style={{
+
+                                  backgroundColor: `rgba(${val > 0 ? '0, 100, 255' : '255, 0, 0'}, ${Math.abs(val)})`,
+
+                                  color: Math.abs(val) > 0.5 ? 'white' : 'black',
+
+                                }}
+
+                              >
+
+                                {val.toFixed(2)}
+
+                              </td>
+
+                            ))}
+
+                          </tr>
+
+                        ))}
+
+                      </tbody>
+
+                    </table>
+
+                  </div>
+
+                </CardContent>
+
+              </Card>
+
+              {stratMatrix.identical_pairs.length > 0 && (
+
+                <Card>
+
+                  <CardHeader>
+
+                    <CardTitle className="text-red-600">⚠ 异常：不同策略收益完全相同</CardTitle>
+
+                    <CardDescription>表达式不同但收益序列一致，通常意味着信号等价或存在 bug</CardDescription>
+
+                  </CardHeader>
+
+                  <CardContent>
+
+                    {stratMatrix.identical_pairs.map((p, idx) => (
+
+                      <div key={idx} className="text-sm">{p.label_a} ≡ {p.label_b}</div>
+
+                    ))}
+
+                  </CardContent>
+
+                </Card>
+
+              )}
+
+              <Card>
+
+                <CardHeader>
+
+                  <CardTitle>高相关策略对</CardTitle>
+
+                </CardHeader>
+
+                <CardContent>
+
+                  <Table>
+
+                    <TableHeader>
+
+                      <TableRow>
+
+                        <TableHead>策略A</TableHead>
+
+                        <TableHead>策略B</TableHead>
+
+                        <TableHead>相关性</TableHead>
+
+                      </TableRow>
+
+                    </TableHeader>
+
+                    <TableBody>
+
+                      {stratMatrix.high_corr_pairs.length === 0 ? (
+
+                        <TableRow>
+
+                          <TableCell colSpan={3} className="text-center text-muted-foreground">暂无高相关策略对</TableCell>
+
+                        </TableRow>
+
+                      ) : (
+
+                        stratMatrix.high_corr_pairs.map((pair, idx) => (
+
+                          <TableRow key={idx}>
+
+                            <TableCell>{pair.label_a}</TableCell>
+
+                            <TableCell>{pair.label_b}</TableCell>
+
+                            <TableCell>
+
+                              <Badge variant={Math.abs(pair.correlation || 0) > 0.8 ? 'destructive' : 'default'}>
+
+                                {(pair.correlation || 0).toFixed(3)}
+
+                              </Badge>
+
+                            </TableCell>
+
+                          </TableRow>
+
+                        ))
+
+                      )}
+
+                    </TableBody>
+
+                  </Table>
+
+                </CardContent>
+
+              </Card>
+
+            </>
+
+          )}
+
+          {stratMatrix && stratMatrix.strategy_ids.length < 2 && (
+
+            <Card>
+
+              <CardContent className="py-6 text-center text-muted-foreground">
+
+                {stratMatrix.message || '可用策略不足 2 个，无法构建相关度矩阵'}
+
+              </CardContent>
+
+            </Card>
+
+          )}
+
+        </TabsContent>
+
+      </Tabs>
 
     </div>
 
