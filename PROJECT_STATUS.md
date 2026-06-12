@@ -89,12 +89,18 @@ git checkout devin/1780928158-import-project
 1. 后端依赖: `cd backend && poetry install`
 2. 起 PostgreSQL/TimescaleDB + Redis(本地或 docker)。
 3. 配 `backend/.env`:填 `TQSDK_ACCOUNT / TQSDK_PASSWORD / TQSDK_SIM=true` 及数据库连接(`.env.example` 有模板)。
-4. **生成候选库**(git 里只有代码,候选在数据库;本地必须自己跑一次):
-   ```
-   cd backend
-   poetry run python scripts/backfill_all_symbols.py --clear --history-years 5 --generations 50 --population 200
-   ```
-   (会从天勤下载 ~5 年历史并对 12 品种挖因子;收盘也能跑,只有实时模拟盘撮合需盘中)
+4. **获取候选库**(二选一):
+   - **(快,推荐)直接导入云端已挖好的 201 个候选**(随仓库附带 `backend/seed_data/seed_candidates.json`):
+     ```
+     cd backend
+     poetry run python scripts/import_candidates.py            # 幂等 upsert
+     # poetry run python scripts/import_candidates.py --replace  # 先清空同品种再导入
+     ```
+   - **(慢,本地自挖)从天勤下载 ~5 年历史并对 12 品种重新挖因子**(收盘也能跑,只有实时模拟盘撮合需盘中):
+     ```
+     cd backend
+     poetry run python scripts/backfill_all_symbols.py --clear --history-years 5 --generations 50 --population 200
+     ```
 5. 起后端: `poetry run uvicorn app.main:app --port 8000`
 6. 起前端: `cd frontend && npm install && npm run dev`(默认 :5173)
 7. 打开前端 →「相关性分析 → 策略相关度」Tab 查看每品种 Top2 / 组合权重 / 跨品种 / 相关度矩阵。
