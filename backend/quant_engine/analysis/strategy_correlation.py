@@ -94,10 +94,13 @@ class StrategyCorrelationService:
         return (fv - median) / iqr
 
     # ------------------------------------------------------------------
-    def compute_return_series(
-        self, formula: str, symbol: str
-    ) -> Optional[pd.Series]:
-        """重建单个策略的逐期收益序列（按时间戳索引）。"""
+    def compute_stats(self, formula: str, symbol: str) -> Optional[Dict[str, Any]]:
+        """重建单个策略：返回逐期收益序列 + 回测绩效（同口径，真实数据）。
+
+        返回 dict: ``returns``(pd.Series), ``sharpe``, ``calmar``,
+        ``max_drawdown``, ``total_trades``, ``win_rate``, ``total_return``,
+        ``skew``, ``kurtosis``。失败返回 None。
+        """
         df = self._load_ohlcv(symbol)
         if df is None or len(df) < 50:
             logger.warning("策略 %s/%s 行情不足，跳过", symbol, formula)
@@ -153,7 +156,34 @@ class StrategyCorrelationService:
         with np.errstate(divide="ignore", invalid="ignore"):
             rets = np.diff(equity) / equity[:-1]
         rets = np.where(np.isfinite(rets), rets, 0.0)
-        return pd.Series(rets, index=df.index[1 : len(equity)])
+        series = pd.Series(rets, index=df.index[1 : len(equity)])
+
+        from scipy.stats import kurtosis as _kurt
+        from scipy.stats import skew as _skew
+
+        finite = rets[np.isfinite(rets)]
+        skew_v = float(_skew(finite)) if finite.size > 2 else 0.0
+        # fisher=False -> 普通峰度(正态=3)，dsr() 形参需要原始峰度
+        kurt_v = float(_kurt(finite, fisher=False)) if finite.size > 2 else 3.0
+
+        return {
+            "returns": series,
+            "sharpe": float(result.sharpe),
+            "calmar": float(result.calmar),
+            "max_drawdown": float(result.max_drawdown),
+            "total_trades": int(result.total_trades),
+            "win_rate": float(result.win_rate),
+            "total_return": float(result.total_return),
+            "skew": skew_v,
+            "kurtosis": kurt_v,
+        }
+
+    def compute_return_series(
+        self, formula: str, symbol: str
+    ) -> Optional[pd.Series]:
+        """重建单个策略的逐期收益序列（按时间戳索引）。"""
+        stats = self.compute_stats(formula, symbol)
+        return None if stats is None else stats["returns"]
 
     # ------------------------------------------------------------------
     def build_matrix(

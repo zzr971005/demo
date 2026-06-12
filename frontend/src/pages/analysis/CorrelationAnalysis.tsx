@@ -74,6 +74,25 @@ interface StrategyCorrelation {
   message?: string
 }
 
+interface Top2Selected {
+  id: string
+  formula: string
+  strategy_rank: number
+  quality_score: number
+  sharpe: number
+  calmar: number
+  dsr: number
+  total_trades: number
+}
+
+interface Top2SymbolResult {
+  symbol: string
+  n_candidates: number
+  selected: Top2Selected[]
+  top2_correlation: number | null
+  warnings: string[]
+}
+
 
 
 export default function CorrelationAnalysis() {
@@ -97,6 +116,54 @@ export default function CorrelationAnalysis() {
   const [stratSymbols, setStratSymbols] = useState<string>('')
 
   const [stratThreshold, setStratThreshold] = useState<number>(0.5)
+
+  const [top2Loading, setTop2Loading] = useState(false)
+
+  const [top2Result, setTop2Result] = useState<Top2SymbolResult[] | null>(null)
+
+
+
+  const runTop2Selection = async (persist: boolean) => {
+
+    setTop2Loading(true)
+
+    try {
+
+      const syms = stratSymbols.split(',').map((s) => s.trim()).filter(Boolean)
+
+      const body: Record<string, unknown> = { persist, tau_corr: stratThreshold }
+
+      if (syms.length > 0) body.symbols = syms
+
+      const res = await fetch(`${API_BASE_URL}/strategy-correlation/select-top2`, {
+
+        method: 'POST',
+
+        headers: { 'Content-Type': 'application/json' },
+
+        body: JSON.stringify(body),
+
+      })
+
+      if (res.ok) {
+
+        const data = await res.json()
+
+        setTop2Result(Array.isArray(data.results) ? data.results : [])
+
+      }
+
+    } catch (error) {
+
+      console.error('Failed to run top2 selection:', error)
+
+    } finally {
+
+      setTop2Loading(false)
+
+    }
+
+  }
 
 
 
@@ -612,11 +679,125 @@ export default function CorrelationAnalysis() {
 
                 </Button>
 
+                <Button variant="outline" onClick={() => runTop2Selection(false)} disabled={top2Loading}>
+
+                  {top2Loading ? '计算中..' : '每品种 Top2（预览）'}
+
+                </Button>
+
+                <Button variant="outline" onClick={() => runTop2Selection(true)} disabled={top2Loading}>
+
+                  每品种 Top2（落库）
+
+                </Button>
+
               </div>
 
             </CardContent>
 
           </Card>
+
+          {top2Result && (
+
+            <Card>
+
+              <CardHeader>
+
+                <CardTitle>每品种 Top2 低相关多因子策略</CardTitle>
+
+                <CardDescription>质量分（夏普/Calmar/IC_IR）+ DSR&gt;0 硬门槛 + top2 间低相关（|ρ| &lt; 阈值）</CardDescription>
+
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+
+                {top2Result.length === 0 && (
+
+                  <div className="text-sm text-muted-foreground">暂无可选策略</div>
+
+                )}
+
+                {top2Result.map((r) => (
+
+                  <div key={r.symbol} className="border rounded-md p-3">
+
+                    <div className="font-medium mb-2">
+
+                      {r.symbol}（候选 {r.n_candidates}{r.top2_correlation != null ? ` · top2 相关性 ${r.top2_correlation.toFixed(3)}` : ''}）
+
+                    </div>
+
+                    {r.selected.length === 0 ? (
+
+                      <div className="text-sm text-muted-foreground">无满足条件的策略</div>
+
+                    ) : (
+
+                      <Table>
+
+                        <TableHeader>
+
+                          <TableRow>
+
+                            <TableHead>排名</TableHead>
+
+                            <TableHead>公式</TableHead>
+
+                            <TableHead>质量分</TableHead>
+
+                            <TableHead>夏普</TableHead>
+
+                            <TableHead>DSR</TableHead>
+
+                            <TableHead>交易数</TableHead>
+
+                          </TableRow>
+
+                        </TableHeader>
+
+                        <TableBody>
+
+                          {r.selected.map((s) => (
+
+                            <TableRow key={s.id}>
+
+                              <TableCell><Badge>#{s.strategy_rank}</Badge></TableCell>
+
+                              <TableCell className="font-mono text-xs">{s.formula}</TableCell>
+
+                              <TableCell>{s.quality_score.toFixed(3)}</TableCell>
+
+                              <TableCell>{s.sharpe.toFixed(3)}</TableCell>
+
+                              <TableCell>{s.dsr.toFixed(3)}</TableCell>
+
+                              <TableCell>{s.total_trades}</TableCell>
+
+                            </TableRow>
+
+                          ))}
+
+                        </TableBody>
+
+                      </Table>
+
+                    )}
+
+                    {r.warnings.length > 0 && (
+
+                      <div className="mt-2 text-xs text-amber-600">{r.warnings.join('；')}</div>
+
+                    )}
+
+                  </div>
+
+                ))}
+
+              </CardContent>
+
+            </Card>
+
+          )}
 
           {stratMatrix && stratMatrix.strategy_ids.length >= 2 && (
 

@@ -198,6 +198,123 @@ def select_top_strategies(
     return selected[:count]
 
 
+def _pair_corr(a: np.ndarray, b: np.ndarray) -> float:
+    """两条收益序列的皮尔逊相关（按尾部对齐到相同长度）。"""
+    n = min(len(a), len(b))
+    if n < 3:
+        return 0.0
+    x, y = a[-n:], b[-n:]
+    if np.std(x) < 1e-12 or np.std(y) < 1e-12:
+        return 0.0
+    try:
+        r, _ = pearsonr(x, y)
+        return float(r) if np.isfinite(r) else 0.0
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+def strategy_quality_score(metrics: Dict[str, Any]) -> float:
+    """多因子策略质量分：夏普/Calmar/IC_IR 加权（归一化到 0~1）。"""
+    sharpe = metrics.get("sharpe") or 0.0
+    calmar = metrics.get("calmar") or 0.0
+    ic_ir = metrics.get("ic_ir")
+    sharpe_n = max(0.0, min(1.0, (sharpe + 2) / 7))
+    calmar_n = max(0.0, min(1.0, calmar / 5))
+    if ic_ir is None:
+        return 0.65 * sharpe_n + 0.35 * calmar_n
+    ic_ir_n = max(0.0, min(1.0, (ic_ir + 1) / 2))
+    return 0.5 * sharpe_n + 0.3 * calmar_n + 0.2 * ic_ir_n
+
+
+def passes_quality_gate(
+    metrics: Dict[str, Any],
+    dsr_floor: float = 0.0,
+    min_trades: int = 10,
+) -> bool:
+    """质量硬门槛：DSR > dsr_floor 且 最小交易数达标。"""
+    dsr = metrics.get("dsr")
+    if dsr is None or dsr <= dsr_floor:
+        return False
+    if (metrics.get("total_trades") or 0) < min_trades:
+        return False
+    return True
+
+
+def select_top2_low_correlation(
+    candidates: List[Dict[str, Any]],
+    returns_map: Dict[str, np.ndarray],
+    tau_corr: float = 0.5,
+    dsr_floor: float = 0.0,
+    min_trades: int = 10,
+) -> Dict[str, Any]:
+    """为单个品种选出 top2 低相关多因子策略。
+
+    规则（设计文档 §5.3）：
+      1. 先过质量硬门槛（DSR>0、最小交易数）；若全不过则放宽（仅 min_trades）并告警；
+      2. s1 = 质量分最高者；
+      3. s2 = 在 ``{|ρ(s, s1)| < tau_corr}`` 中质量分最高者；
+      4. 若无人满足低相关，取与 s1 相关性绝对值最小者作为 s2 并告警。
+
+    Parameters
+    ----------
+    candidates : list of dict
+        每项含 ``id``、可选 ``formula``，及质量指标(sharpe/calmar/dsr/total_trades...)。
+    returns_map : dict
+        ``id -> 收益序列(np.ndarray)``。
+    """
+    warnings: List[str] = []
+    pool = [c for c in candidates if c.get("id") in returns_map]
+    if not pool:
+        return {"selected": [], "warnings": ["无可用收益序列"], "n_eligible": 0}
+
+    eligible = [
+        c for c in pool
+        if passes_quality_gate(c, dsr_floor=dsr_floor, min_trades=min_trades)
+    ]
+    if not eligible:
+        warnings.append("无候选通过 DSR 硬门槛，已放宽为仅最小交易数门槛")
+        eligible = [
+            c for c in pool if (c.get("total_trades") or 0) >= min_trades
+        ]
+    if not eligible:
+        warnings.append("无候选满足最小交易数门槛，已使用全部候选")
+        eligible = pool
+
+    eligible.sort(key=strategy_quality_score, reverse=True)
+    s1 = eligible[0]
+    s1_ret = returns_map[s1["id"]]
+
+    s2: Optional[Dict[str, Any]] = None
+    s2_corr = None
+    for c in eligible[1:]:
+        rho = _pair_corr(s1_ret, returns_map[c["id"]])
+        if abs(rho) < tau_corr:
+            s2, s2_corr = c, rho
+            break
+
+    if s2 is None and len(eligible) > 1:
+        rest = eligible[1:]
+        s2 = min(rest, key=lambda c: abs(_pair_corr(s1_ret, returns_map[c["id"]])))
+        s2_corr = _pair_corr(s1_ret, returns_map[s2["id"]])
+        warnings.append(
+            f"无策略与 s1 的 |相关性| < {tau_corr}，已取相关性最小者作为 top2"
+        )
+
+    selected: List[Dict[str, Any]] = []
+    for i, c in enumerate([x for x in (s1, s2) if x is not None]):
+        c = dict(c)
+        c["strategy_rank"] = i + 1
+        c["quality_score"] = strategy_quality_score(c)
+        selected.append(c)
+
+    return {
+        "selected": selected,
+        "warnings": warnings,
+        "n_eligible": len(eligible),
+        "top2_correlation": s2_corr,
+    }
+
+
 class StrategySelector:
     """策略选择器"""
     

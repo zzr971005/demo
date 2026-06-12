@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Candidate, CandidateStatus
 from quant_engine.analysis.strategy_correlation import StrategyCorrelationService
+from quant_engine.ops.strategy_selector import select_top2_low_correlation
+from quant_engine.validation.pbo_dsr import dsr as deflated_sharpe
 
 router = APIRouter(
     prefix="/api/strategy-correlation", tags=["strategy-correlation"]
@@ -81,3 +83,136 @@ async def get_strategy_correlation_matrix(
         correlation_threshold=request.threshold,
     )
     return service.build_matrix(strategies, threshold=request.threshold)
+
+
+class SelectTop2Request(BaseModel):
+    symbols: Optional[List[str]] = None  # 不传则覆盖全部有候选的品种
+    frequency: str = "1H"
+    tau_corr: float = 0.5  # 低相关阈值
+    dsr_floor: float = 0.0  # DSR 硬门槛
+    min_trades: int = 10
+    pool_per_symbol: int = 5  # 每品种参与评估的候选数（按 sharpe_train 取前 N）
+    persist: bool = False  # 是否落库标记 is_selected_strategy / strategy_rank
+
+
+def _symbols_with_candidates(
+    session: Session, requested: Optional[List[str]]
+) -> List[str]:
+    if requested:
+        return requested
+    rows = (
+        session.query(Candidate.symbol)
+        .filter(Candidate.formula.isnot(None))
+        .distinct()
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+@router.post("/select-top2")
+async def select_top2_per_symbol(
+    request: SelectTop2Request,
+    session: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """为每个品种选出 top2 低相关多因子策略（质量分 + DSR 硬门槛 + 低相关）。
+
+    指标全部基于真实行情重建的收益序列实时计算（DSR 用本品种候选数作多检次数），
+    不依赖候选库中可能为空的 sharpe_test/dsr 列。persist=True 时落库标记。
+    """
+    service = StrategyCorrelationService(frequency=request.frequency)
+    symbols = _symbols_with_candidates(session, request.symbols)
+    results: List[Dict[str, Any]] = []
+
+    for symbol in symbols:
+        rows = (
+            session.query(Candidate)
+            .filter(Candidate.formula.isnot(None), Candidate.symbol == symbol)
+            .order_by(Candidate.sharpe_train.desc().nullslast())
+            .limit(request.pool_per_symbol)
+            .all()
+        )
+        cand_meta: List[Dict[str, Any]] = []
+        returns_map: Dict[str, Any] = {}
+        n_trials = len(rows)
+        for r in rows:
+            stats = service.compute_stats(r.formula, symbol)
+            if stats is None:
+                continue
+            ret = stats["returns"]
+            if ret is None or ret.dropna().shape[0] < 30:
+                continue
+            cid = str(r.id)
+            dsr_val = deflated_sharpe(
+                sharpe=stats["sharpe"],
+                n_trials=max(n_trials, 2),
+                skewness=stats["skew"],
+                kurtosis=stats["kurtosis"],
+            )
+            cand_meta.append(
+                {
+                    "id": cid,
+                    "formula": r.formula,
+                    "symbol": symbol,
+                    "sharpe": stats["sharpe"],
+                    "calmar": stats["calmar"],
+                    "max_drawdown": stats["max_drawdown"],
+                    "total_trades": stats["total_trades"],
+                    "total_return": stats["total_return"],
+                    "ic_ir": r.ic_ir,
+                    "dsr": dsr_val,
+                }
+            )
+            returns_map[cid] = ret.to_numpy()
+
+        sel = select_top2_low_correlation(
+            cand_meta,
+            returns_map,
+            tau_corr=request.tau_corr,
+            dsr_floor=request.dsr_floor,
+            min_trades=request.min_trades,
+        )
+
+        if request.persist:
+            # 先清空该品种旧的选中标记，再写入新 top2
+            session.query(Candidate).filter(
+                Candidate.symbol == symbol,
+                Candidate.is_selected_strategy.is_(True),
+            ).update(
+                {"is_selected_strategy": False, "strategy_rank": None},
+                synchronize_session=False,
+            )
+            for c in sel["selected"]:
+                session.query(Candidate).filter(Candidate.id == c["id"]).update(
+                    {
+                        "is_selected_strategy": True,
+                        "strategy_rank": c["strategy_rank"],
+                    },
+                    synchronize_session=False,
+                )
+
+        results.append(
+            {
+                "symbol": symbol,
+                "n_candidates": len(cand_meta),
+                "selected": [
+                    {
+                        "id": c["id"],
+                        "formula": c["formula"],
+                        "strategy_rank": c["strategy_rank"],
+                        "quality_score": round(c["quality_score"], 4),
+                        "sharpe": round(c["sharpe"], 4),
+                        "calmar": round(c["calmar"], 4),
+                        "dsr": round(c["dsr"], 4),
+                        "total_trades": c["total_trades"],
+                    }
+                    for c in sel["selected"]
+                ],
+                "top2_correlation": sel.get("top2_correlation"),
+                "warnings": sel.get("warnings", []),
+            }
+        )
+
+    if request.persist:
+        session.commit()
+
+    return {"persisted": request.persist, "results": results}
