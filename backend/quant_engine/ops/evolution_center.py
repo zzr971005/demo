@@ -496,39 +496,58 @@ class EvolutionCenter:
             from app.models import Candidate, CandidateStatus
             from app.db import get_session
             
+            from quant_engine.ops.gp_fitness import FitnessConfig, FitnessEvaluator
+
             seeds = []
-            
+            evaluator = FitnessEvaluator(FitnessConfig())
+            seen_expr: set = set()
+
+            def _try_add(candidate, origin: str) -> bool:
+                try:
+                    seed = create_individual_from_expr(candidate.formula, generation=0)
+                    expr = seed.to_expression()
+                    if expr in seen_expr:
+                        return False
+                    seed.origin = origin
+                    if origin == 'seed':
+                        seed.id = candidate.id  # 同品种种子沿用原ID
+                    if not evaluator._validate_parameter_types(seed):
+                        logger.warning(f"种子参数验证失败，跳过: {candidate.formula}")
+                        return False
+                    seen_expr.add(expr)
+                    seeds.append(seed)
+                    return True
+                except Exception as e:
+                    logger.warning(f"解析种子失败 {getattr(candidate, 'id', '?')}: {e}")
+                    return False
+
             with get_session() as session:
-                # 查询当前品种的优质因子
-                # 条件：夏普比率 > 0.5，按夏普比率降序排列
-                candidates = session.query(Candidate).filter(
+                # ① 同品种优质因子（夏普>0.5，降序）
+                same = session.query(Candidate).filter(
                     Candidate.symbol == self.task_config.symbol,
                     Candidate.sharpe_train > 0.5,
                 ).order_by(Candidate.sharpe_train.desc()).limit(max_seeds).all()
-                
-                for candidate in candidates:
-                    try:
-                        # 从表达式创建GP个体
-                        seed = create_individual_from_expr(
-                            candidate.formula,
-                            generation=0
-                        )
-                        seed.origin = 'seed'
-                        seed.id = candidate.id  # 使用原有的ID
+                for c in same:
+                    if _try_add(c, 'seed'):
+                        logger.info(f"加载同品种种子: {c.id[:8]}... 夏普={c.sharpe_train:.4f}")
 
-                        # 验证种子参数类型
-                        from quant_engine.ops.gp_fitness import FitnessEvaluator, FitnessConfig
-                        evaluator = FitnessEvaluator(FitnessConfig())
-                        if not evaluator._validate_parameter_types(seed):
-                            logger.warning(f"种子参数验证失败，跳过: {candidate.formula}")
-                            continue
+                # ② 方法2 跨品种热启动：同品种种子不足时，用其它品种的优质因子结构
+                #    作为起始基因填充（会在本品种数据上重新评分，无前视/泄漏）。
+                need = max_seeds - len(seeds)
+                if need > 0:
+                    others = session.query(Candidate).filter(
+                        Candidate.symbol != self.task_config.symbol,
+                        Candidate.sharpe_train > 0.5,
+                    ).order_by(Candidate.sharpe_train.desc()).limit(need * 4).all()
+                    added = 0
+                    for c in others:
+                        if added >= need:
+                            break
+                        if _try_add(c, 'seed_xsym'):
+                            added += 1
+                    if added:
+                        logger.info(f"[跨品种热启动] 同品种种子不足，补入 {added} 个其它品种优质因子作为起始基因")
 
-                        seeds.append(seed)
-                        logger.info(f"加载种子: {candidate.id[:8]}... 夏普={candidate.sharpe_train:.4f}")
-                    except Exception as e:
-                        logger.warning(f"解析种子失败 {candidate.id}: {e}")
-                        continue
-            
             logger.info(f"从数据库加载了 {len(seeds)} 个种子")
             return seeds
             
@@ -1028,9 +1047,13 @@ class EvolutionCenter:
             # 避免薄品种(如 SA/MA)整代被硬门槛清空、无因子可落库/可繁殖。
             # probation 个体绩效仍低，过不了 top2/转实盘的 DSR>0 等硬门控，仅供继续进化。
             min_keep = config.get("min_keep_top_k", 5)
+            probation_min_trades = config.get("probation_min_trades", 10)
             if len(valid_individuals) < min_keep:
+                # 质量护栏：probation 只收"交易数达标"的半成品，剔除"几笔交易高夏普"的过拟合假象
                 fallback = sorted(
-                    (ind for ind in best_individuals if ind.fitness.get("penalized", -9999) > -9000),
+                    (ind for ind in best_individuals
+                     if ind.fitness.get("penalized", -9999) > -9000
+                     and ind.metrics.get("total_trades", 0) >= probation_min_trades),
                     key=lambda x: x.fitness.get("penalized", -9999),
                     reverse=True,
                 )

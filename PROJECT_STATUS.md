@@ -28,32 +28,37 @@
 - **历史窗口拉长**: 补齐前从天勤下载 ~5 年历史(从 ~2 年/3357根 增到 ~8453根, 2021-06~2026-06)。
 
 ## 4. 当前候选库状态(云端 DB,不在 git)
-重跑 12 品种后已验证: **0 裸常数 / 0 零交易 / 每品种候选数==不同绩效指纹数(无雷同重复)**。
-计数: TA 34 · FG 19 · AU 19 · PP 10 · M 9 · SC 4 · IF 4 · SR 4 · CU 3 · MA 2 · RB 1 · SA 1 (共110)。
-> 注意:候选数据只在云端 DB,**git 里只有代码**。本地需自行跑:
-> `cd backend && poetry run python scripts/backfill_all_symbols.py --clear --history-years 5`
+已验证: **0 裸常数 / 0 零交易 / 每品种候选数==不同绩效指纹数(无雷同重复)**。
+计数随重跑参数变化(代数/种群越大越多);本会话用代数50/种群200 重跑后:RB 18 · CU 19 · TA 34 · FG 19 · AU 19 · PP 10 · M 9 · SC 4 · IF 4 · SR 4 · MA 7 · SA 8(经方法1/2救活)。薄品种已不再≈0。
+> 注意:候选数据只在云端 DB,**git 里只有代码**。本地需自行跑(建议高参数):
+> `cd backend && poetry run python scripts/backfill_all_symbols.py --clear --history-years 5 --generations 50 --population 200`
 
 ## 5. 已知问题 / 下一步
-1. **部分品种有效因子太少**(RB=1 SA=1 MA=2 CU=3),不足以支撑 top2 低相关。根因是单轮 12 代搜索不足 + 种群多样性崩溃 + 成本/T-1 门槛,**非品种本身问题**。见第 6 节增量方法。
+1. **薄品种有效因子曾≈0**(SA/MA),已用第6节方法1(门槛分级)+方法2(跨品种热启动)救活(MA 7 / SA 8)。后续若要更高质量,见第6节"后续方法"(多次重跑合并/自适应阈值/多周期原语)。
 2. **盘中端到端实跑未做**: 真实模拟盘撮合下单闭环、期限结构表(`ohlcv_term_*`)实时入库需盘中。
 3. **季节性因子缺失**: DSL 无日历原语(月份/年内相位/距换月天数),无法挖"固定月份趋势"类 alpha;若做需加日历原语 + 按年留一交叉验证防过拟合。
 4. **pyproject.toml 的 GPU torch 是 Windows nightly 链接且已 404**: `-E gpu/full` 安装会失败,普通 install 不受影响,本地需换可用 wheel。
 
-## 6. 如何增加"有效因子少"品种的有效因子(建议)
-"有效个体" = 适应度(扣费+T-1后)>0 的个体。提升数量的方法,按性价比排序:
-1. **加大搜索预算**(最直接): `--generations 40~80 --population 150~300`,并调大 `max_stagnation`(别早停)。RB/MA 大概率是搜索不足。
-2. **SEED 热启动**: 用已有 328 个 SEED 因子库做初始种群,而不是全随机初始化(initial population 注入已知好因子)。
-3. **多次独立重跑后合并**: 不同随机种子各跑几轮,合并去重(指纹去重已就位),累积出多样池——RB 当初的 328 就是这么来的。
-4. **降低/分级门槛**: 把"有效"门槛从硬性 fitness>0 改成保留 top-K(即使略负也留作半成品继续进化),增加可繁殖父代。
-5. **提升信号有效性**: 检查阈值化是否导致大量"几乎不交易/全程同方向"个体;可对不同因子自适应分位阈值。
-6. **多周期/多因子原语**: 引入更多算子与 D1/H1/5min 多周期特征,扩大可表达空间。
-7. **(进阶)季节性原语**: 对农产品/建材类补日历因子,显著扩充正交 alpha。
+## 6. 增加"有效因子少"品种的有效因子 —— 已做的实验 + 后续方法
+"有效个体" = 适应度(扣费+T-1后)>0 的个体。
 
-建议先做 1+2(改参数 + SEED 热启动),成本最低见效最快。
+### 已验证的实验(本会话)
+- **加大搜索预算**(代数50/种群200,0 改代码): RB 1→18、CU 3→19。结论:对"本就有 alpha"的品种,之前少是搜索不足,堆算力即可解决。
+- **但 SA/MA 堆算力无效**(仍≈0),且 4 品种历史一样厚(~5年),→ 它们瓶颈不是数据/算力,而是当前"分位阈值信号+扣费+T-1"下扣费后还赚钱的因子稀少。
+- **方法1 门槛分级(已实现)**: 见 `gp_evolution.select_parents`(过线父代不足时按评分保留 top2 当父代,而非随机)+ `evolution_center` 保存端(过线不足时兜底保留 top-K probation 半成品,config `min_keep_top_k` 默认5)。效果: MA 0→7、SA 1→8,且**真进化出正夏普因子**(MA 1.40 / SA 0.87)。对 RB/CU 等达标品种无影响。
+- **方法2 跨品种 SEED 热启动(已实现)**: `evolution_center._load_seeds_from_database` 同品种种子不足时,补入其它品种的优质因子(夏普>0.5)作为起始基因,在本品种数据上重新评分(无前视/泄漏)。
+- **probation 质量护栏(已实现)**: probation 只收交易数≥`probation_min_trades`(默认10)的半成品,剔除"几笔交易高夏普"的过拟合假象。
+
+### 后续可继续提质的方法
+1. **多次独立重跑后合并**: 不同随机种子各跑几轮,合并去重(指纹去重已就位)——RB 当初的 328 就是这么累积的。
+2. **自适应阈值**: 现统一分位阈值可能让 MA/SA 大量个体"几乎不交易/全程同方向";改按因子自适应阈值。
+3. **多周期/多因子原语**: 引入更多算子与 D1/H1/5min 多周期特征,扩大可表达空间。
+4. **(进阶)季节性原语**: 对农产品/建材类补日历因子(月份/年内相位/距换月天数),按年留一交叉验证防过拟合,扩充正交 alpha。
 
 ## 7. 关键文件
 - 进化核心: `backend/quant_engine/ops/evolution_center.py`(含退化过滤/指纹去重 `_reject_candidate`/`_load_existing_fingerprints`)
-- GP: `backend/quant_engine/ops/gp_evolution.py`(有效个体定义 `select_parents`)、`gp_fitness.py`(适应度/阈值)
+- GP: `backend/quant_engine/ops/gp_evolution.py`(有效个体/门槛分级父代 `select_parents`)、`gp_fitness.py`(适应度/min_trades/阈值)
+- 种子热启动: `evolution_center._load_seeds_from_database`(同品种 + 跨品种热启动)
 - 批量补齐脚本: `backend/scripts/backfill_all_symbols.py`(--history-years/--clear/最终指纹去重)
 - 多因子/组合: `quant_engine/ops/{combo_search,combo_search_prune,combo_tune,strategy_selector,cross_symbol}.py`、`quant_engine/analysis/{strategy_correlation,portfolio_optimizer}.py`
 - 相关度 API/前端: `app/api/routes/analysis/strategy_correlation.py` + 前端"相关性分析→策略相关度"Tab
