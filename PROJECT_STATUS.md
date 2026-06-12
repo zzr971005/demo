@@ -49,8 +49,16 @@
 - **方法2 跨品种 SEED 热启动(已实现)**: `evolution_center._load_seeds_from_database` 同品种种子不足时,补入其它品种的优质因子(夏普>0.5)作为起始基因,在本品种数据上重新评分(无前视/泄漏)。
 - **probation 质量护栏(已实现)**: probation 只收交易数≥`probation_min_trades`(默认10)的半成品,剔除"几笔交易高夏普"的过拟合假象。
 
+### 这些方法对各品种的适用性(重要)
+- **方法1/2/护栏都是全局代码,已对 12 品种自动生效,无需"按品种再加"**。区别只在触发与收益:
+  - 方法1门槛分级 + probation护栏:**只在"过线个体<5"时触发**。RB/CU/TA 等达标品种不会触发 → 对它们无影响(不变好也不变差),仅作薄品种安全网。
+  - 方法2跨品种热启动:**对所有品种都可能触发**(同品种种子<20 时)。富品种可能略有提升(起点更高、收敛更快),但边际有限、无坏处(种子在本品种数据重新评分,无前视/泄漏)。
+- **副作用需盯防**:跨品种热启动若让多品种从同几个"通用因子"出发,可能使**不同品种因子趋同、相关度升高**,与"低相关多因子组合"目标冲突。缓冲有指纹去重+变异+重新评分;建议在"策略相关度矩阵"里观察,若跨品种相关度普遍偏高就调低跨品种种子比例。
+- **想让富品种更好,更对路的杠杆是下面的"多次重跑合并"与"自适应阈值/多周期原语",而非方法1/2**。
+- 可做的对照实验(本地):挑富品种(如 TA),对比开/关跨品种热启动的「因子数 / 最高夏普 / 跨品种相关度」,用数据决定富品种是否值得用方法2。
+
 ### 后续可继续提质的方法
-1. **多次独立重跑后合并**: 不同随机种子各跑几轮,合并去重(指纹去重已就位)——RB 当初的 328 就是这么累积的。
+1. **多次独立重跑后合并**: 不同随机种子各跑几轮,合并去重(指纹去重已就位)——RB 当初的 328 就是这么累积的。**这是扩充富品种优质池最有效的办法**。
 2. **自适应阈值**: 现统一分位阈值可能让 MA/SA 大量个体"几乎不交易/全程同方向";改按因子自适应阈值。
 3. **多周期/多因子原语**: 引入更多算子与 D1/H1/5min 多周期特征,扩大可表达空间。
 4. **(进阶)季节性原语**: 对农产品/建材类补日历因子(月份/年内相位/距换月天数),按年留一交叉验证防过拟合,扩充正交 alpha。
@@ -63,3 +71,32 @@
 - 多因子/组合: `quant_engine/ops/{combo_search,combo_search_prune,combo_tune,strategy_selector,cross_symbol}.py`、`quant_engine/analysis/{strategy_correlation,portfolio_optimizer}.py`
 - 相关度 API/前端: `app/api/routes/analysis/strategy_correlation.py` + 前端"相关性分析→策略相关度"Tab
 - 规格(完成标准): `.devin/specs/auto-evolve-factor-mining/`
+
+## 8. 下载到本地 / 复现
+代码都在 PR #1,分支 `devin/1780928158-import-project`(https://github.com/zzr971005/demo/pull/1)。
+
+**方式A(推荐,合并后用 main):**
+1. 在 GitHub 打开 PR #1 点 **Merge**(合并到 main)。
+2. 本地全新克隆: `git clone https://github.com/zzr971005/demo.git`(或已有仓库 `git pull`)。
+
+**方式B(不合并,直接拿分支):**
+```
+git fetch origin
+git checkout devin/1780928158-import-project
+```
+
+**拿到代码后本地启动(候选数据需本地重新生成):**
+1. 后端依赖: `cd backend && poetry install`
+2. 起 PostgreSQL/TimescaleDB + Redis(本地或 docker)。
+3. 配 `backend/.env`:填 `TQSDK_ACCOUNT / TQSDK_PASSWORD / TQSDK_SIM=true` 及数据库连接(`.env.example` 有模板)。
+4. **生成候选库**(git 里只有代码,候选在数据库;本地必须自己跑一次):
+   ```
+   cd backend
+   poetry run python scripts/backfill_all_symbols.py --clear --history-years 5 --generations 50 --population 200
+   ```
+   (会从天勤下载 ~5 年历史并对 12 品种挖因子;收盘也能跑,只有实时模拟盘撮合需盘中)
+5. 起后端: `poetry run uvicorn app.main:app --port 8000`
+6. 起前端: `cd frontend && npm install && npm run dev`(默认 :5173)
+7. 打开前端 →「相关性分析 → 策略相关度」Tab 查看每品种 Top2 / 组合权重 / 跨品种 / 相关度矩阵。
+
+> 注意:`.env`(天勤账号)与 `backend/output/`(生成数据)按 .gitignore 不入库,你本地这些文件原样保留、不受影响。GPU torch 见第5节第4点(普通 install 不受影响)。
